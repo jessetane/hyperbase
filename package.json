@@ -1,0 +1,28 @@
+{
+  "name": "dbase",
+  "version": "1.0.0",
+  "description": "A general purpose storage interface",
+  "keywords": [
+    "dbase",
+    "general purpose"
+    "realtime",
+    "hierarchical",
+    "database"
+  ],
+  "scripts": {
+    "test": "standard"
+  },
+  "dependencies": {
+    "inherits": "^2.0.1",
+    "terminal-stream": "^1.0.0"
+  },
+  "devDependencies": {
+    "standard": "^4.3.1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jessetane/livebase.git"
+  },
+  "author": "jesse.tane@gmail.com",
+  "license": "WTFPL"
+}
