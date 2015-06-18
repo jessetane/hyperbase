@@ -4,7 +4,7 @@
   "description": "A general purpose storage interface",
   "keywords": [
     "dbase",
-    "general purpose"
+    "general purpose",
     "realtime",
     "hierarchical",
     "database"
