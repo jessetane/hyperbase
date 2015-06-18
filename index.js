@@ -46,17 +46,11 @@ Hyperbase.prototype.on = function (eventType, handler, cb) {
     if (cachedForPath) {
       var cachedForEvent = cachedForPath[eventType]
       if (cachedForEvent !== undefined) {
-        if (eventType === 'value') {
-          handler(cachedForEvent)
-        } else if (eventType === 'key_added') {
-          if (cachedForEvent === null) {
-            handler(null)
-          } else {
-            for (var i in cachedForEvent) {
-              handler(cachedForEvent[i])
-            }
-          }
-        }
+        this._client.dispatchEvent({
+          type: eventType,
+          path: this.path,
+          body: cachedForEvent
+        }, handler)
       }
     }
   }
@@ -79,13 +73,16 @@ Hyperbase.prototype.off = function (eventType, handler, cb) {
   if (eventTypes) {
     var handlers = eventTypes && eventTypes[eventType]
     if (handlers) {
-      if (handler) {
-        eventTypes[eventType] = handlers.filter(function (h) { return h !== handler })
-      } else {
-        handlers = null
-      }
+      eventTypes[eventType] = handlers.filter(function (h) {
+        if (handler && handler !== h) {
+          return true
+        } else {
+          h.cancelled = true
+          return false
+        }
+      })
 
-      if (!handlers || handlers.length === 0) {
+      if (eventTypes[eventType].length === 0) {
         delete eventTypes[eventType]
         if (Object.keys(eventTypes).length === 0) {
           delete this._client._listeners[this.path]
