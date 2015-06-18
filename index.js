@@ -6,6 +6,11 @@ function Dbase (path, client) {
     return new Dbase(path, client)
   }
 
+  if (typeof path !== 'string') {
+    client = path
+    path = null
+  }
+
   this.path = path || ''
   var parts = this.path.split('/')
   this.key = parts.slice(-1)[0]
