@@ -102,6 +102,7 @@ Returns a new dbase instance, the opposite of `.child()`.
   * `"key_added"` passes the key of any newly addded immediate child.
   * `"key_removed"` passes the key of any newly removed immediate child.
 * `handler` the function to call when the specified event type occurs.
+
 #### `child.off(eventType [, handler])`
 * `handler` can be the function that was originally registered for the event type, or omitted to unregister all the event type's handlers.
 
