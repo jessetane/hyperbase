@@ -1,9 +1,9 @@
 {
-  "name": "dbase",
+  "name": "hyperbase",
   "version": "1.0.0",
   "description": "A general purpose storage interface",
   "keywords": [
-    "dbase",
+    "hyperbase",
     "general purpose",
     "realtime",
     "hierarchical",
@@ -21,7 +21,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/jessetane/livebase.git"
+    "url": "git+https://github.com/jessetane/hyperbase.git"
   },
   "author": "jesse.tane@gmail.com",
   "license": "WTFPL"

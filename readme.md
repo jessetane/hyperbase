@@ -1,4 +1,4 @@
-# dbase
+# hyperbase
 A general purpose storage interface.
 
 ## Warning
@@ -8,24 +8,24 @@ This is just an experiment! Don't use it for anything serious!
 I want something a bit more practical than levelup, but more abstract / open than CouchDB, Firebase, etc. Keeping some notes here for now.
 
 ## How
-Streaming JSON-RPC. Pipe client and server streams together directly or over tcp / websocket / data-channel etc. Pass a client stream to the dbase constructor to get a handle.
+Streaming JSON-RPC. Pipe client and server streams together directly or over tcp / websocket / data-channel etc. Pass a client stream to the hyperbase constructor to get a handle.
 
 ## Example
 Wire things up:
 ``` javascript
-var dbase = require('dbase')
-var dbaseStorage = require('dbase-localstorage')
+var hyperbase = require('hyperbase')
+var hyperbaseStorage = require('hyperbase-localstorage')
 
-var storage = dbaseStorage()
+var storage = hyperbaseStorage()
 var server = storage.Server()
-var client = dbase.Client()
+var client = hyperbase.Client()
 
 client.pipe(server).pipe(client)
 ```
 
 Get a handle:
 ``` javascript
-var db = dbase(client)
+var db = hyperbase(client)
 ```
 
 Make an update:
@@ -61,16 +61,16 @@ things.child('1').remove()                   // "removed 1"
 
 ## JavaScript API
 
-#### `var dbase = require('dbase')`
+#### `var hyperbase = require('hyperbase')`
 
 ## Constructors
 
-#### `var client = dbase.Client()`
-Creates a duplex RPC stream that can be connected to dbase server and shared across multiple dbase instances.
+#### `var client = hyperbase.Client()`
+Creates a duplex RPC stream that can be connected to hyperbase server and shared across multiple hyperbase instances.
 
-#### `var db = dbase(client)`
-Creates a new dbase instance.
-* `client` should be an instance of dbase.Client.
+#### `var db = hyperbase(client)`
+Creates a new hyperbase instance.
+* `client` should be an instance of hyperbase.Client.
 
 ## Properties
 
@@ -83,11 +83,11 @@ The instance's address in the hierarchy relative to its parent.
 ## Methods
 
 #### `var child = db.child(path)`
-Returns a new dbase instance connected to the same client as the caller, but restricted to operating on the location indicated by `path`.
+Returns a new hyperbase instance connected to the same client as the caller, but restricted to operating on the location indicated by `path`.
 * `path` a slash delimited relative address.
 
 #### `var db = child.parent()`
-Returns a new dbase instance, the opposite of `.child()`.
+Returns a new hyperbase instance, the opposite of `.child()`.
 
 #### `child.update(value [, cb])`
 * `value` an ArrayBuffer, String or Object. If Object, this method will patch any existing data.

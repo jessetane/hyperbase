@@ -1,9 +1,9 @@
-module.exports = Dbase
+module.exports = Hyperbase
 module.exports.Client = require('./client')
 
-function Dbase (path, client) {
-  if (!(this instanceof Dbase)) {
-    return new Dbase(path, client)
+function Hyperbase (path, client) {
+  if (!(this instanceof Hyperbase)) {
+    return new Hyperbase(path, client)
   }
 
   if (typeof path !== 'string') {
@@ -18,17 +18,17 @@ function Dbase (path, client) {
   this._client = client
 }
 
-Dbase.prototype.parent = function () {
+Hyperbase.prototype.parent = function () {
   var parts = this.path.split('/')
   parts.pop()
-  return new Dbase(parts.join('/'), this._client)
+  return new Hyperbase(parts.join('/'), this._client)
 }
 
-Dbase.prototype.child = function (key) {
-  return new Dbase(this.path ? (this.path + '/' + key) : key, this._client)
+Hyperbase.prototype.child = function (key) {
+  return new Hyperbase(this.path ? (this.path + '/' + key) : key, this._client)
 }
 
-Dbase.prototype.on = function (eventType, handler, cb) {
+Hyperbase.prototype.on = function (eventType, handler, cb) {
   var eventTypes = this._client._listeners[this.path] = this._client._listeners[this.path] || {}
   var handlers = eventTypes[eventType] = eventTypes[eventType] || []
   handlers.push(handler)
@@ -62,7 +62,7 @@ Dbase.prototype.on = function (eventType, handler, cb) {
   }
 }
 
-Dbase.prototype.once = function (eventType, handler, cb) {
+Hyperbase.prototype.once = function (eventType, handler, cb) {
   var self = this
   var originalHandler = handler
 
@@ -74,7 +74,7 @@ Dbase.prototype.once = function (eventType, handler, cb) {
   this.on(eventType, handler, cb)
 }
 
-Dbase.prototype.off = function (eventType, handler, cb) {
+Hyperbase.prototype.off = function (eventType, handler, cb) {
   var eventTypes = this._client._listeners[this.path]
   if (eventTypes) {
     var handlers = eventTypes && eventTypes[eventType]
@@ -114,7 +114,7 @@ Dbase.prototype.off = function (eventType, handler, cb) {
   cb && cb()
 }
 
-Dbase.prototype.update = function (value, cb) {
+Hyperbase.prototype.update = function (value, cb) {
   this._client.send({
     name: 'update',
     path: this.path,
@@ -123,7 +123,7 @@ Dbase.prototype.update = function (value, cb) {
   })
 }
 
-Dbase.prototype.remove = function (cb) {
+Hyperbase.prototype.remove = function (cb) {
   this._client.send({
     name: 'remove',
     path: this.path,

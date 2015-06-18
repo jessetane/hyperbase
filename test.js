@@ -1,11 +1,11 @@
 var tape = require('tape')
-var dbase = require('./')
-var client = dbase.Client()
+var hyperbase = require('./')
+var client = hyperbase.Client()
 var db = null
 
 module.exports = function (server) {
   client.pipe(server).pipe(client)
-  db = dbase(client)
+  db = hyperbase(client)
 }
 
 tape('create data', function (t) {
