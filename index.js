@@ -28,83 +28,78 @@ Hyperbase.prototype.child = function (key) {
   return new Hyperbase(this.path ? (this.path + '/' + key) : key, this._client)
 }
 
-Hyperbase.prototype.on = function (eventType, handler, cb) {
-  var eventTypes = this._client._listeners[this.path] = this._client._listeners[this.path] || {}
-  var handlers = eventTypes[eventType] = eventTypes[eventType] || []
-  handlers.push(handler)
+Hyperbase.prototype.on = function (eventType, listener, cb) {
+  var lookup = this.path + ':' + eventType
+  var listeners = this._client._listeners[lookup]
+  var pending = this._client._pending[lookup]
 
-  if (handlers.length === 1) {
+  if (!listeners && !pending) {
+    this._client._pending[lookup] = true
+
+    var cbwrap = function (err) {
+      delete this._client._pending[lookup]
+      if (err) return cb && cb(err)
+      this._client._listeners[lookup] = listeners || []
+      this._client._listeners[lookup].push(listener)
+      cb && cb()
+    }.bind(this)
+
     this._client.send({
       name: 'on',
       path: this.path,
       type: eventType,
-      cb: cb && this._client.registerCallback(cb)
+      cb: this._client.registerCallback(cbwrap)
     })
   } else {
     cb && cb()
-    var cachedForPath = this._client._cache[this.path]
-    if (cachedForPath) {
-      var cachedForEvent = cachedForPath[eventType]
-      if (cachedForEvent !== undefined) {
-        this._client.dispatchEvent({
-          type: eventType,
-          path: this.path,
-          body: cachedForEvent
-        }, handler)
-      }
+    var cached = this._client._cache[lookup]
+    if (cached !== undefined) {
+      this._client.dispatchEvent({
+        type: eventType,
+        path: this.path,
+        body: cached
+      }, listener)
     }
   }
 }
 
-Hyperbase.prototype.once = function (eventType, handler, cb) {
+Hyperbase.prototype.once = function (eventType, listener, cb) {
   var self = this
-  var originalHandler = handler
+  var originalListener = listener
 
-  handler = function () {
-    self.off(eventType, handler)
-    originalHandler.apply(null, arguments)
+  listener = function () {
+    self.off(eventType, listener)
+    originalListener.apply(null, arguments)
   }
 
-  this.on(eventType, handler, cb)
+  this.on(eventType, listener, cb)
 }
 
-Hyperbase.prototype.off = function (eventType, handler, cb) {
-  var eventTypes = this._client._listeners[this.path]
-  if (eventTypes) {
-    var handlers = eventTypes && eventTypes[eventType]
-    if (handlers) {
-      eventTypes[eventType] = handlers.filter(function (h) {
-        if (handler && handler !== h) {
-          return true
-        } else {
-          h.cancelled = true
-          return false
-        }
+Hyperbase.prototype.off = function (eventType, listener, cb) {
+  var lookup = this.path + ':' + eventType
+  var listeners = this._client._listeners[lookup]
+  if (listeners) {
+    this._client._listeners[lookup] = listeners = listeners.filter(function (l) {
+      if (listener && listener !== l) {
+        return true
+      } else {
+        l.cancelled = true
+        return false
+      }
+    })
+
+    if (listeners.length === 0) {
+      delete this._client._listeners[lookup]
+      delete this._client._cache[lookup]
+
+      this._client.send({
+        name: 'off',
+        path: this.path,
+        type: eventType,
+        cb: cb && this._client.registerCallback(cb)
       })
 
-      if (eventTypes[eventType].length === 0) {
-        delete eventTypes[eventType]
-        if (Object.keys(eventTypes).length === 0) {
-          delete this._client._listeners[this.path]
-        }
-
-        var cachedForPath = this._client._cache[this.path]
-        if (cachedForPath) {
-          delete cachedForPath[eventType]
-          if (Object.keys(cachedForPath).length === 0) {
-            delete this._client._cache[this.path]
-          }
-        }
-
-        this._client.send({
-          name: 'off',
-          path: this.path,
-          type: eventType,
-          cb: cb && this._client.registerCallback(cb)
-        })
-
-        return
-      }
+      return
     }
   }
 
