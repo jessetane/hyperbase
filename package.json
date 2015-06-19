@@ -14,7 +14,7 @@
   },
   "dependencies": {
     "inherits": "^2.0.1",
-    "terminal-stream": "^1.0.0"
+    "terminal-stream": "^1.1.0"
   },
   "devDependencies": {
     "standard": "^4.3.1"
