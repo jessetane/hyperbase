@@ -1,10 +1,10 @@
 var tape = require('tape')
-var hyperbase = require('./')
+var hyperbase = require('../')
 var client = hyperbase.Client()
 var db = null
 
-module.exports = function (server) {
-  client.pipe(server).pipe(client)
+module.exports = function (storage) {
+  client.pipe(storage.Server()).pipe(client)
   db = hyperbase(client)
   db.remove()
 }
