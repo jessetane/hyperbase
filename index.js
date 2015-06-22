@@ -45,10 +45,12 @@ Hyperbase.prototype.on = function (eventType, listener, cb) {
     }.bind(this)
 
     this._client.send({
-      name: 'on',
-      path: this.path,
-      type: eventType,
-      cb: this._client.registerCallback(cbwrap)
+      method: 'on',
+      params: {
+        path: this.path,
+        type: eventType
+      },
+      id: this._client.registerCallback(cbwrap)
     })
   } else {
     cb && cb()
@@ -57,7 +59,7 @@ Hyperbase.prototype.on = function (eventType, listener, cb) {
       this._client.dispatchEvent({
         type: eventType,
         path: this.path,
-        body: cached
+        data: cached
       }, listener)
     }
   }
@@ -93,10 +95,12 @@ Hyperbase.prototype.off = function (eventType, listener, cb) {
       delete this._client._cache[lookup]
 
       this._client.send({
-        name: 'off',
-        path: this.path,
-        type: eventType,
-        cb: cb && this._client.registerCallback(cb)
+        method: 'off',
+        params: {
+          path: this.path,
+          type: eventType
+        },
+        id: cb && this._client.registerCallback(cb)
       })
 
       return
@@ -108,17 +112,21 @@ Hyperbase.prototype.off = function (eventType, listener, cb) {
 
 Hyperbase.prototype.update = function (value, cb) {
   this._client.send({
-    name: 'update',
-    path: this.path,
-    body: value,
-    cb: cb && this._client.registerCallback(cb)
+    method: 'update',
+    params: {
+      path: this.path,
+      data: value
+    },
+    id: cb && this._client.registerCallback(cb)
   })
 }
 
 Hyperbase.prototype.remove = function (cb) {
   this._client.send({
-    name: 'remove',
-    path: this.path,
-    cb: cb && this._client.registerCallback(cb)
+    method: 'remove',
+    params: {
+      path: this.path
+    },
+    id: cb && this._client.registerCallback(cb)
   })
 }

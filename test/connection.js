@@ -40,14 +40,14 @@ tape('buffer operations while disconnected, only resend 1x', function (t) {
   t.plan(5)
 
   var didReconnect = false
-  var names = {}
+  var methods = {}
   var n = 0
 
   client.timeout = 100
   client.send = function (message) {
     if (didReconnect) {
-      if (names[message.name]) t.fail()
-      else names[message.name] = true
+      if (methods[message.method]) t.fail()
+      else methods[message.method] = true
       t.pass()
       if (++n === 3) delete client.send
     }

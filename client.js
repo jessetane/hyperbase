@@ -44,39 +44,36 @@ Client.prototype.send = function (message) {
 Client.prototype.onmessage = function (message) {
   message = JSON.parse(message)
 
-  switch (message.name) {
-    case 'cb':
-      var cb = this._callbacks[message.id]
-      if (cb) {
-        cb.call(message.body ? new Error(message.body) : null)
-        delete this._callbacks[message.id]
-      }
-      break
-    case 'ev':
-      if (this._updateCache(message)) {
-        this.dispatchEvent(message)
-      }
-      break
+  if (message.id) {
+    var cb = this._callbacks[message.id]
+    if (cb) {
+      cb.call(message.error ? new Error(message.error) : null)
+      delete this._callbacks[message.id]
+    }
+  } else if (message.method === 'event') {
+    if (this._updateCache(message.params)) {
+      this.dispatchEvent(message.params)
+    }
   }
 }
 
-Client.prototype._updateCache = function (message) {
-  var lookup = message.path + ':' + message.type
+Client.prototype._updateCache = function (params) {
+  var lookup = params.path + ':' + params.type
   var cached = this._cache[lookup]
   var didUpdate = false
 
-  if (message.type === 'key_added') {
-    if (cached && message.body.length) {
-      this._cache[lookup] = cached.concat(message.body)
+  if (params.type === 'key_added') {
+    if (cached && params.data.length) {
+      this._cache[lookup] = cached.concat(params.data)
       didUpdate = cached && cached.length !== this._cache[lookup].length
     } else {
-      this._cache[lookup] = message.body
+      this._cache[lookup] = params.data
       didUpdate = cached !== this._cache[lookup]
     }
-  } else if (message.type === 'key_removed') {
+  } else if (params.type === 'key_removed') {
     if (cached) {
-      for (var i in message.body) {
-        var key = message.body[i]
+      for (var i in params.data) {
+        var key = params.data[i]
         this._cache[lookup] = cached = cached.filter(function (k) {
           if (k === key) {
             didUpdate = true
@@ -90,7 +87,7 @@ Client.prototype._updateCache = function (message) {
       didUpdate = true
     }
   } else {
-    this._cache[lookup] = message.body || null
+    this._cache[lookup] = params.data || null
     didUpdate = cached !== this._cache[lookup]
   }
 
@@ -111,16 +108,16 @@ Client.prototype.dispatchEvent = function (evt, listener) {
 
   setTimeout(function () {
     evt = this.shift()
-    evt.listeners.forEach(function (l) {
+    evt.listeners && evt.listeners.forEach(function (l) {
       if (l.cancelled) return
       if (evt.type === 'value') {
-        l(evt.body || null)
+        l(evt.data || null)
       } else {
-        if (evt.type === 'key_added' && !evt.body.length) {
+        if (evt.type === 'key_added' && !evt.data.length) {
           l(null)
         } else {
-          for (var i in evt.body) {
-            l(evt.body[i])
+          for (var i in evt.data) {
+            l(evt.data[i])
           }
         }
       }
@@ -147,9 +144,12 @@ Client.prototype.pipe = function () {
     var type = lookup.slice(sep + 1)
 
     this.send({
-      name: 'on',
-      path: path,
-      type: type
+      method: 'on',
+      params: {
+        path: path,
+        type: type
+      }
+      // XXX handle errors here?
     })
   }
 
