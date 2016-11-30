@@ -65,7 +65,7 @@ module.exports = class HMap extends EventEmitter {
 
   serialize () {
     var data = this.data ? JSON.parse(this.hash) : {}
-    this.forEachLink(this.links, data, (location, property, opts) => {
+    this.forEachLink(this._links, data, (location, property, opts) => {
       location[property] = this.children[location[property]].serialize()
     })
     Object.defineProperty(data, 'key', {
@@ -80,7 +80,7 @@ module.exports = class HMap extends EventEmitter {
     var patch = {
       [this.key]: null
     }
-    this.forEachLink(this.links, this.data, (location, property, opts) => {
+    this.forEachLink(this._links, this.data, (location, property, opts) => {
       Object.assign(
         patch,
         this.children[location[property]].delete()
@@ -96,7 +96,7 @@ module.exports = class HMap extends EventEmitter {
     this.data = data
     this.hash = hash
     var links = {}
-    this.forEachLink(this.links, data, (location, property, opts) => {
+    this.forEachLink(this._links, data, (location, property, opts) => {
       links[location[property]] = opts
     })
     for (var key in this.children) {
