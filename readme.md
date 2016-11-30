@@ -2,10 +2,12 @@
 A general purpose storage interface.
 
 ## Why
-Most "apps" I work on are essentially fancy database editors that multiple people can use simultaneously. This library is intended to be a living document about what I wish the most abstract tools I had to use in building these editors would look like.
+Most "apps" I work on are, at their core, fancy editors that multiple people can use to observe and mutate a common dataset simultaneously. This library represents the current state of my opinions on what the minimum API should look like to make building these kinds of apps fast and easy.
 
 ## How
-The current version depends on [Firebase](), which is a commercial project and so that's bad, but a lot of features it provides and are required for this design to be practical and I haven't found good free alternatives for all of them yet.
+The current version depends on [Firebase](https://firebase.google.com), which is a commercial project and so that's bad, but a lot of features it provides and are required for this design to be practical and I haven't found free alternatives for all of them yet.
+
+I know that Firebase is thought of as a centralized database but that should't be taken to imply that the interface described here won't also make sense in peer-to-peer environments.
 
 ## Examples
 These assume you have a Firebase app initialized like this:
@@ -216,6 +218,7 @@ thing.on('change', () => {
 
 ## Cons
 * A full local / remote round trip is required to resolve each link
+* Depends on a commercial project for the moment
 
 ## License
 MIT
