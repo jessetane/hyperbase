@@ -199,7 +199,7 @@ thing.on('change', () => {
 
   console.log(patch)
   // => {
-  //   'b-thing': null,
+  //   'some-thing': null,
   //   'es-b-thing': null,
   //   'fr-b-thing': null
   // }
