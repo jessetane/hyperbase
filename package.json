@@ -6,23 +6,16 @@
     "hyperbase",
     "general purpose",
     "realtime",
-    "hierarchical",
+    "storage",
     "database"
   ],
   "scripts": {
     "test": "standard"
   },
-  "dependencies": {
-    "inherits": "^2.0.1",
-    "terminal-stream": "^1.1.0"
-  },
   "devDependencies": {
-    "standard": "^4.3.1"
+    "standard": "^8.6.0"
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/jessetane/hyperbase.git"
-  },
+  "repository": "https://github.com/jessetane/hyperbase.git",
   "author": "jesse.tane@gmail.com",
-  "license": "WTFPL"
+  "license": "MIT"
 }

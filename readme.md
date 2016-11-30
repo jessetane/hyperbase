@@ -1,116 +1,221 @@
 # hyperbase
 A general purpose storage interface.
 
-## Warning
-This is just an experiment! Don't use it for anything serious!
-
 ## Why
-I want something a bit more practical than levelup, but more abstract / open than CouchDB, Firebase, etc. Keeping some notes here for now.
+Most "apps" I work on are essentially fancy database editors that multiple people can use simultaneously. This library is intended to be a living document about what I wish the most abstract tools I had to use in building these editors would look like.
 
 ## How
-Streaming JSON-RPC. Pipe client and server streams together directly or over tcp / websocket / data-channel etc. Pass a client stream to the hyperbase constructor to get a handle.
+The current version depends on [Firebase](), which is a commercial project and so that's bad, but a lot of features it provides and are required for this design to be practical and I haven't found good free alternatives for all of them yet.
 
-## Example
-Wire things up:
+## Examples
+These assume you have a Firebase app initialized like this:
 ``` javascript
-var hyperbase = require('hyperbase')
-var hyperbaseStorage = require('hyperbase-localstorage')
+import Firebase from 'firebase'
 
-var storage = hyperbaseStorage()
-var server = storage.Server()
-var client = hyperbase.Client()
-
-client.pipe(server).pipe(client)
-```
-
-Get a handle:
-``` javascript
-var db = hyperbase(client)
-```
-
-Make an update:
-``` javascript
-var thing = db.child('things/0')
-thing.update({ answer: 42 })
-```
-
-Watch / unwatch a value:
-``` javascript
-db.on('value', function (value) {
-  console.log(value)
-  db.off('value')
+const remote = Firebase.initializeApp({
+  apiKey: process.env.FIREBASE_CLIENT_ID,
+  authDomain: `${process.env.FIREBASE_APP_ID}.firebaseapp.com`,
+  databaseURL: `https://${process.env.FIREBASE_APP_ID}.firebaseio.com`,
+  storageBucket: `${process.env.FIREBASE_APP_ID}.appspot.com`,
 })
-// "{ things: { 0: { answer: 42 }}}"
 ```
 
-Watch a key space:
+And a Hyperbase instance initialized like this:
 ``` javascript
-var things = db.child('things')
+import Hyperbase from 'hyperbase'
 
-things.on('key_added', function (key) {
-  console.log('added', key)
+const base = new Hyperbase({
+  storage: remote.database().ref()
+})
+```
+
+Working with Maps:
+``` javascript
+const thing = base.load('a-thing', {
+  type: 'map'
 })
 
-things.on('key_removed', function (key) {
-  console.log('removed', key)
+thing.on('change', () => {
+  console.log(
+    thing.loading,
+    thing.key,
+    thing.serialize()
+  )
+  // => false, 'a-thing', { name: 'A thing' }
 })
-
-things.child('1').update({ hello: 'world' }) // "added 1"
-things.child('1').remove()                   // "removed 1"
 ```
 
-## JavaScript API
+Working with Lists:
+``` javascript
+const allTheThings = base.load('all-the-things', {
+  type: 'list',
+  page: 0,
+  pageSize: 10,
+  reverse: false,
+  each: {
+    type: 'map'
+  }
+})
 
-#### `var hyperbase = require('hyperbase')`
+allTheThings.on('change', () => {
+  var { loading, page, pageSize, length } = allTheThings
 
-## Constructors
+  console.log(
+    loaded,
+    length,
+    allTheThings.serialize().map(thing => thing.name)
+  )
+  // => false, 1000, [ 'A thing', 'Other thing', ... ]
 
-#### `var client = hyperbase.Client()`
-Creates a duplex RPC stream that can be connected to hyperbase server and shared across multiple hyperbase instances.
+  if (!loading && (page + 1) * pageSize < length) {
+    allTheThings.page++
+  }
+})
+```
 
-#### `var db = hyperbase(client)`
-Creates a new hyperbase instance.
-* `client` should be an instance of hyperbase.Client.
+Creating data:
+``` javascript
+const randomKey = base.create()
 
-## Properties
+const aNewThing = {
+  name: 'A new thing'
+}
 
-#### `db.path`
-The instance's full address in the database hierarchy.
+base.write({
+  [randomKey]: aNewThing,
+  [`all-the-things/${randomKey}`]: Date.now(),
+}, err => {
+  console.log(err || 'It worked')
+})
+```
 
-#### `db.key`
-The instance's address in the hierarchy relative to its parent.
+Working with links:
+``` javascript
+const thing = base.load('some-thing', {
+  type: 'map',
+  link: {
+    'i18n/es': {
+      type: 'map'
+    }
+  }
+})
 
-## Methods
+thing.on('change', () => {
+  console.log(thing.serialize())
 
-#### `var child = db.child(path)`
-Returns a new hyperbase instance connected to the same client as the caller, but restricted to operating on the location indicated by `path`.
-* `path` a slash delimited relative address.
+  // 1st time
+  // => {
+  //   name: 'Some thing',
+  //   i18n: {
+  //     es: {
+  //       name: 'Alguna cosa'
+  //     },
+  //     fr: 'key-for-french-translation'
+  //   }
+  // }
 
-#### `var db = child.parent()`
-Returns a new hyperbase instance, the opposite of `.child()`.
+  // 2nd time
+  // => {
+  //   name: 'Some thing',
+  //   i18n: {
+  //     es: {
+  //       name: 'Alguna cosa'
+  //     },
+  //     fr: {
+  //       name: 'Quelque chose'
+  //     }
+  //   }
+  // }
 
-#### `child.update(value [, cb])`
-* `value` an ArrayBuffer, String or Object. If Object, this method will patch any existing data.
-* `cb` an optional success / error callback.
+  thing.link = {
+    'i18n/*': {
+      type: 'map'
+    }
+  }
+})
+```
 
-#### `child.remove([cb])`
-* `cb` an optional success / error callback.
+Nested relationships:
+``` javascript
+const person = base.load('a-person', {
+  type: 'map',
+  link: {
+    friends: {
+      type: 'list',
+      each: {
+        type: 'map',
+        link: {
+          bestFriend: {
+            type: 'map'
+          }
+        }
+      }
+    }
+  }
+})
 
-#### `child.on(eventType, handler)`
-* `eventType` can be:
-  * `"value"` passes data to the handler upon initial registration and whenever any change occurs.
-  * `"key_added"` passes the key of any newly addded immediate child.
-  * `"key_removed"` passes the key of any newly removed immediate child.
-* `handler` the function to call when the specified event type occurs.
+person.on('change', () => {
+  if (person.loading) {
+    console.log('Some links are still resolving...')
+    return
+  }
 
-#### `child.off(eventType [, handler])`
-* `handler` can be the function that was originally registered for the event type, or omitted to unregister all the event type's handlers.
+  console.log(person.serialize())
+  // => {
+  //   name: 'A person',
+  //   bestFriend: 'some-person',
+  //   friends: [
+  //     {
+  //       name: 'B person',
+  //       bestFriend: {
+  //         name: 'C person',
+  //         bestFriend: 'b-person',
+  //         friends: { 'b-person': 1480476889245, ... }
+  //       },
+  //       friends: { 'c-person': 1480476889246, ... }
+  //     }, {
+  //       ...
+  //     }
+  //   ]
+  // }
+})
+```
 
-## JSON-RPC API
-(For server implementors)
+Deleting data:
+``` javascript
+const thing = base.load('some-thing', {
+  type: 'map',
+  link: {
+    'i18n/*': {
+      type: 'map'
+    }
+  }
+})
 
-TODO
+thing.on('change', () => {
+  var patch = thing.delete()
+
+  console.log(patch)
+  // => {
+  //   'b-thing': null,
+  //   'es-b-thing': null,
+  //   'fr-b-thing': null
+  // }
+
+  patch['all-the-things/some-thing'] = null
+
+  base.write(patch, err => {
+    console.log(err || 'It worked')
+    base.unload(thing)
+  })
+})
+```
+
+## Pros
+* Flexible
+
+## Cons
+* A full local / remote round trip is required to resolve each link
 
 ## License
-
-WTFPL
+MIT
