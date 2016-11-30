@@ -7,7 +7,7 @@ Most "apps" I work on are, at their core, fancy editors that multiple people can
 ## How
 The current version depends on [Firebase](https://firebase.google.com), which is a commercial project and so that's bad, but a lot of features it provides and are required for this design to be practical and I haven't found free alternatives for all of them yet.
 
-I know that Firebase is thought of as a centralized database but that should't be taken to imply that the interface described here won't also make sense in peer-to-peer environments.
+I know that Firebase is thought of as a centralized database but that shouldn't be taken to imply that the interface described here won't also make sense in peer-to-peer environments.
 
 ## Examples
 These assume you have a Firebase app initialized like this:
