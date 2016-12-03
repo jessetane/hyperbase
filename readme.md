@@ -1,16 +1,19 @@
 # hyperbase
-A general purpose storage interface.
+A general purpose storage interface
 
 ## Why
-Most "apps" I work on are, at their core, fancy editors that multiple people can use to observe and mutate a common dataset simultaneously. This library represents the current state of my opinions on what the minimum API should look like to make building these kinds of apps fast and easy.
+I like the classic filesystem api a lot but it could be better:
+* watch / unwatch should be as easy to use as read()
+* it should be possible to atomically write data at multiple paths
+* there should be an index or list type collection in addition to directories
+  * these should be pageable in either direction and cheaply reorderable
+* clients should be able to read collections and their children wholesale and join on arbitrary symlinks
 
 ## How
-The current version depends on [Firebase](https://firebase.google.com), which is a commercial project and so that's bad, but a lot of features it provides and are required for this design to be practical and I haven't found free alternatives for all of them yet.
-
-I know that Firebase is thought of as a centralized database but that shouldn't be taken to imply that the interface described here won't also make sense in peer-to-peer environments.
+The current version depends on [Firebase](https://firebase.google.com) which is a commercial product and so that sucks. Also Firebase doesn't let you count child nodes in a collection without reading all of them so true pageable indexes are not possible. It does provide a lot of other useful features that I am not interested in reimplementing for the purposes of this sketch though, maybe you can suggest an alternative?
 
 ## Examples
-These assume you have a Firebase app initialized like this:
+Setup:
 ``` javascript
 import Firebase from 'firebase'
 
@@ -20,10 +23,7 @@ const remote = Firebase.initializeApp({
   databaseURL: `https://${process.env.FIREBASE_APP_ID}.firebaseio.com`,
   storageBucket: `${process.env.FIREBASE_APP_ID}.appspot.com`,
 })
-```
 
-And a Hyperbase instance initialized like this:
-``` javascript
 import Hyperbase from 'hyperbase'
 
 const base = new Hyperbase({
@@ -218,6 +218,7 @@ thing.on('change', () => {
 
 ## Cons
 * A full local / remote round trip is required to resolve each link
+* Pageable indexes are faked by loading all keys and only paging the values
 * Depends on a commercial project for the moment
 
 ## License
