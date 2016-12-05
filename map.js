@@ -65,8 +65,8 @@ module.exports = class HMap extends EventEmitter {
 
   serialize () {
     var data = this.data ? JSON.parse(this.hash) : {}
-    this.forEachLink(this._links, data, (location, property, opts) => {
-      location[property] = this.children[location[property]].serialize()
+    this.forEachLink(this._links, data, (location, property, childKey, opts) => {
+      location[property] = this.children[childKey].serialize()
     })
     Object.defineProperty(data, 'key', {
       enumerable: false,
@@ -80,10 +80,10 @@ module.exports = class HMap extends EventEmitter {
     var patch = {
       [this.key]: null
     }
-    this.forEachLink(this._links, this.data, (location, property, opts) => {
+    this.forEachLink(this._links, this.data, (location, property, childKey, opts) => {
       Object.assign(
         patch,
-        this.children[location[property]].delete()
+        this.children[childKey].delete()
       )
     })
     return patch
@@ -96,8 +96,8 @@ module.exports = class HMap extends EventEmitter {
     this.data = data
     this.hash = hash
     var links = {}
-    this.forEachLink(this._links, data, (location, property, opts) => {
-      links[location[property]] = opts
+    this.forEachLink(this._links, data, (location, property, childKey, opts) => {
+      links[childKey] = opts
     })
     for (var key in this.children) {
       if (!links[key]) {
@@ -130,29 +130,39 @@ module.exports = class HMap extends EventEmitter {
   forEachLink (links, data, cb) {
     for (var path in links) {
       var opts = links[path]
-      var pointers = [ data ]
+      var isList = opts.type === 'list'
+      var pointers = [[ data, '' ]]
       var components = path.split('/')
       components.forEach((component, i) => {
         var last = i === components.length - 1
         var nextPointers = []
         pointers.forEach(pointer => {
-          if (!pointer || typeof pointer !== 'object') return
+          var location = pointer[0]
+          if (!location || typeof location !== 'object') return
+          var relpath = pointer[1]
+          if (relpath) relpath += '/'
+          var next = () => {
+            if (last) {
+              var childKey = isList
+                ? this.prefix + this.key + '/' + relpath + property
+                : location[property]
+              cb(location, property, childKey, opts)
+            } else {
+              nextPointers.push([
+                location[property],
+                relpath + property
+              ])
+            }
+          }
           if (component === '*') {
-            for (var property in pointer) {
-              if (pointer[property] !== undefined) {
-                if (last) {
-                  cb(pointer, property, opts)
-                } else {
-                  nextPointers.push(pointer[property])
-                }
+            for (var property in location) {
+              if (location[property] !== undefined) {
+                next()
               }
             }
-          } else if (pointer[component] !== undefined) {
-            if (last) {
-              cb(pointer, component, opts)
-            } else {
-              nextPointers.push(pointer[component])
-            }
+          } else if (location[component] !== undefined) {
+            property = component
+            next()
           }
         })
         pointers = nextPointers
