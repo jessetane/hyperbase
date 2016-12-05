@@ -75,6 +75,34 @@ allTheThings.on('change', () => {
 })
 ```
 
+Reordering list items:
+``` javascript
+const allTheThings = base.load('all-the-things', {
+  type: 'list',
+  page: 0,
+  pageSize: 10,
+  each: {
+    type: 'map'
+  }
+})
+
+allTheThings.on('change', () => {
+  var things = allTheThings.serialize()
+  var firstThing = things[0]
+  var secondThing = things[1]
+
+  var pageRelativeDestinationIndex = 0
+  var patch = allTheThings.reorder(
+    secondThing.key,
+    pageRelativeDestinationIndex
+  )
+
+  base.write(patch, err => {
+    app.log(err || 'Reordered successfully')
+  })
+})
+```
+
 Creating data:
 ``` javascript
 const randomKey = base.create()
