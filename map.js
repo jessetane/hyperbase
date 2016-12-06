@@ -97,31 +97,35 @@ module.exports = class HMap extends EventEmitter {
     this.hash = hash
     var links = {}
     this.forEachLink(this._links, data, (location, property, childKey, opts) => {
-      links[childKey] = opts
+      links[childKey] = [ opts, location[property] ]
     })
-    for (var key in this.children) {
-      if (!links[key]) {
-        changed = true
-        var child = this.children[key]
-        child.removeListener('change', this.onchange)
-        child.unwatch()
-        delete this.children[key]
-      }
+    for (var childKey in this.children) {
+      if (links[childKey]) continue
+      changed = true
+      var child = this.children[childKey]
+      child.removeListener('change', this.onchange)
+      child.unwatch()
+      delete this.children[childKey]
     }
-    for (key in links) {
-      var opts = links[key]
-      child = this.children[key]
-      if (!child) {
-        changed = true
-        var isList = opts.type === 'list'
-        var Klass = isList ? HList : HMap
-        child = this.children[key] = new Klass(Object.assign({
-          key: isList ? (this.prefix + this.key + '/' + key) : key,
-          storage: this.storage,
-          debounce: 0
-        }, opts))
-        child.on('change', this.onchange)
+    for (childKey in links) {
+      child = this.children[childKey]
+      if (child) continue
+      changed = true
+      var link = links[childKey]
+      var opts = link[0]
+      if (opts.type === 'list') {
+        var key = this.prefix + this.key + '/' + childKey
+        var Klass = HList
+      } else {
+        key = link[1]
+        Klass = HMap
       }
+      child = this.children[childKey] = new Klass(Object.assign({
+        key,
+        storage: this.storage,
+        debounce: 0
+      }, opts))
+      child.on('change', this.onchange)
     }
     if (changed) {
       this.onchange()
@@ -131,7 +135,6 @@ module.exports = class HMap extends EventEmitter {
   forEachLink (links, data, cb) {
     for (var path in links) {
       var opts = links[path]
-      var isList = opts.type === 'list'
       var pointers = [[ data, '' ]]
       var components = path.split('/')
       components.forEach((component, i) => {
@@ -142,28 +145,28 @@ module.exports = class HMap extends EventEmitter {
           if (!location || typeof location !== 'object') return
           var relpath = pointer[1]
           if (relpath) relpath += '/'
-          var next = () => {
+          if (component === '*') {
+            for (var property in location) {
+              if (location[property] === undefined) continue
+              if (last) {
+                cb(location, property, relpath + property, opts)
+              } else {
+                nextPointers.push([
+                  location[property],
+                  relpath + property
+                ])
+              }
+            }
+          } else if (location[component] !== undefined) {
+            property = component
             if (last) {
-              var childKey = isList
-                ? relpath + property
-                : location[property]
-              cb(location, property, childKey, opts)
+              cb(location, property, relpath + property, opts)
             } else {
               nextPointers.push([
                 location[property],
                 relpath + property
               ])
             }
-          }
-          if (component === '*') {
-            for (var property in location) {
-              if (location[property] !== undefined) {
-                next()
-              }
-            }
-          } else if (location[component] !== undefined) {
-            property = component
-            next()
           }
         })
         pointers = nextPointers
