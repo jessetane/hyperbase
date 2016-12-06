@@ -113,9 +113,10 @@ module.exports = class HMap extends EventEmitter {
       child = this.children[key]
       if (!child) {
         changed = true
-        var Klass = opts.type === 'list' ? HList : HMap
+        var isList = opts.type === 'list'
+        var Klass = isList ? HList : HMap
         child = this.children[key] = new Klass(Object.assign({
-          key,
+          key: isList ? (this.prefix + this.key + '/' + key) : key,
           storage: this.storage,
           debounce: 0
         }, opts))
@@ -144,7 +145,7 @@ module.exports = class HMap extends EventEmitter {
           var next = () => {
             if (last) {
               var childKey = isList
-                ? this.prefix + this.key + '/' + relpath + property
+                ? relpath + property
                 : location[property]
               cb(location, property, childKey, opts)
             } else {
