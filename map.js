@@ -78,13 +78,16 @@ module.exports = class HMap extends EventEmitter {
   delete () {
     if (this.loading) throw new Error('cannot delete items that have not loaded')
     var patch = {
-      [this.key]: null
+      [this.prefix + this.key]: null
     }
     this.forEachLink(this._links, this.data, (location, property, childKey, opts) => {
       Object.assign(
         patch,
         this.children[childKey].delete()
       )
+      if (opts.type === 'list') {
+        delete patch[`${this.key}/${childKey}`]
+      }
     })
     return patch
   }
