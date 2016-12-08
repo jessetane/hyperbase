@@ -158,6 +158,21 @@ module.exports = class HList extends HMap {
     return data
   }
 
+  delete () {
+    if (this.loading) throw new Error('cannot delete items that have not loaded')
+    if (this.pageSize < this.length) throw new Error('cannot delete because page size is smaller than the amount of total items')
+    var patch = {
+      [this.prefix + this.key]: null
+    }
+    this.view.map(key => {
+      Object.assign(
+        patch,
+        this.children[key].delete()
+      )
+    })
+    return patch
+  }
+
   onload (snap) {
     if (snap.val() === null) {
       this.data = null
