@@ -118,7 +118,10 @@ module.exports = class HMap extends EventEmitter {
       var link = links[childKey]
       var opts = link[0]
       if (opts.type === 'list') {
-        var key = this.prefix + this.key + '/' + childKey
+        var foreignKey = link[1]
+        var key = typeof foreignKey === 'string'
+          ? link[1]
+          : this.prefix + this.key + '/' + childKey
         var Klass = HList
       } else {
         key = link[1]
