@@ -64,6 +64,7 @@ module.exports = class HMap extends EventEmitter {
   }
 
   serialize () {
+    if (this.cache) return this.cache
     var data = this.data ? JSON.parse(this.hash) : {}
     this.forEachLink(this._links, data, (location, property, childKey, opts) => {
       location[property] = this.children[childKey].serialize()
@@ -72,7 +73,7 @@ module.exports = class HMap extends EventEmitter {
       enumerable: false,
       get: () => this.key
     })
-    return data
+    return this.cache = data
   }
 
   delete () {
@@ -178,6 +179,7 @@ module.exports = class HMap extends EventEmitter {
   }
 
   onchange (evt) {
+    delete this.cache
     if (this.debounce) {
       clearTimeout(this._debounce)
       this._debounce = setTimeout(() => {

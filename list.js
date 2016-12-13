@@ -148,6 +148,7 @@ module.exports = class HList extends HMap {
   }
 
   serialize () {
+    if (this.cache) return this.cache
     var data = this.view
       ? this.view.map(key => this.children[key].serialize())
       : []
@@ -155,7 +156,7 @@ module.exports = class HList extends HMap {
       enumerable: false,
       get: () => this.key
     })
-    return data
+    return this.cache = data
   }
 
   delete () {
