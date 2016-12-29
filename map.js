@@ -104,9 +104,10 @@ module.exports = class HMap extends EventEmitter {
       links[childKey] = [ opts, location[property] ]
     })
     for (var childKey in this.children) {
-      if (links[childKey]) continue
-      changed = true
       var child = this.children[childKey]
+      var link = links[childKey]
+      if (link && link[1] === child.key) continue
+      changed = true
       child.removeListener('change', this.onchange)
       child.unwatch()
       delete this.children[childKey]
