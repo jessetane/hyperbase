@@ -68,7 +68,11 @@ module.exports = class HList extends HMap {
 
   watch () {
     this.notFoundRef = this.storage.child(this.prefix + this.key).limitToLast(1)
-    this.notFoundRef.once('value', this.onload)
+    this.notFoundRef.once('value', this.onload, err => {
+      this.data = null
+      this.emit('error', err)
+      this.onchange()
+    })
     this.ref = this.storage.child(this.prefix + this.key).orderByValue()
     this.ref.on('child_added', this.onadd)
     this.ref.on('child_removed', this.onremove)

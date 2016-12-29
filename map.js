@@ -46,7 +46,10 @@ module.exports = class HMap extends EventEmitter {
 
   watch () {
     this.ref = this.storage.child(this.prefix + this.key)
-    this.ref.on('value', this.onvalue)
+    this.ref.on('value', this.onvalue, err => {
+      this.emit('error', err)
+      this.onvalue({ val: () => null })
+    })
   }
 
   unwatch () {
