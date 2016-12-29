@@ -5,7 +5,8 @@ var HMap = require('./map')
 module.exports = class Hyperbase extends EventEmitter {
   constructor (opts) {
     super()
-    this.onchange = HMap.prototype.onchange.bind(this)
+    this.onerror = this.onerror.bind(this)
+    this.onchange = this.onchange.bind(this)
     this.storage = opts.storage
     this.debounce = opts.debounce === undefined ? 25 : opts.debounce
     this.mounts = []
@@ -26,14 +27,14 @@ module.exports = class Hyperbase extends EventEmitter {
       storage: this.storage,
       debounce: 0
     }, opts))
-    mount.on('change', () => {
-      this.onchange(mount)
-    })
+    mount.on('error', this.onerror)
+    mount.on('change', this.onchange)
     this.mounts.push(mount)
     return mount
   }
 
   unload (mount) {
+    mount.removeListener('error', this.onerror)
     mount.removeListener('change', this.onchange)
     mount.unwatch()
     this.mounts = this.mounts.filter(m => m !== mount)
@@ -50,5 +51,13 @@ module.exports = class Hyperbase extends EventEmitter {
 
   write (patch, cb) {
     return this.storage.update(patch, cb)
+  }
+
+  onerror (err) {
+    this.emit('error', err)
+  }
+
+  onchange (evt) {
+    HMap.prototype.onchange.call(this, evt)
   }
 }

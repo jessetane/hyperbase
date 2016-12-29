@@ -8,6 +8,7 @@ module.exports = class HMap extends EventEmitter {
       HList = require('./list')
     }
     this.onvalue = this.onvalue.bind(this)
+    this.onerror = this.onerror.bind(this)
     this.onchange = this.onchange.bind(this)
     this.key = opts.key
     this.prefix = opts.prefix ? (opts.prefix + '/') : ''
@@ -47,8 +48,10 @@ module.exports = class HMap extends EventEmitter {
   watch () {
     this.ref = this.storage.child(this.prefix + this.key)
     this.ref.on('value', this.onvalue, err => {
+      err.target = this
+      this.data = null
       this.emit('error', err)
-      this.onvalue({ val: () => null })
+      this.update()
     })
   }
 
@@ -111,6 +114,7 @@ module.exports = class HMap extends EventEmitter {
       var link = links[childKey]
       if (link && link[1] === child.key) continue
       changed = true
+      child.removeListener('error', this.onerror)
       child.removeListener('change', this.onchange)
       child.unwatch()
       delete this.children[childKey]
@@ -136,6 +140,7 @@ module.exports = class HMap extends EventEmitter {
         storage: this.storage,
         debounce: 0
       }, opts))
+      child.on('error', this.onerror)
       child.on('change', this.onchange)
     }
     if (changed) {
@@ -183,6 +188,11 @@ module.exports = class HMap extends EventEmitter {
         pointers = nextPointers
       })
     }
+  }
+
+  onerror (err) {
+    err.currentTarget = this
+    this.emit('error', err)
   }
 
   onchange (evt) {

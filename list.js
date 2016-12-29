@@ -69,6 +69,7 @@ module.exports = class HList extends HMap {
   watch () {
     this.notFoundRef = this.storage.child(this.prefix + this.key).limitToLast(1)
     this.notFoundRef.once('value', this.onload, err => {
+      err.target = this
       this.data = null
       this.emit('error', err)
       this.onchange()
@@ -107,6 +108,7 @@ module.exports = class HList extends HMap {
     for (var key in this.children) {
       var child = this.children[key]
       if (!pageKeys[key]) {
+        child.removeListener('error', this.onerror)
         child.removeListener('change', this.onchange)
         child.unwatch()
         delete this.children[key]
@@ -121,6 +123,7 @@ module.exports = class HList extends HMap {
           storage: this.storage,
           debounce: 0
         }, this._each))
+        child.on('error', this.onerror)
         child.on('change', this.onchange)
       }
     }
