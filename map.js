@@ -93,7 +93,7 @@ module.exports = class HMap extends EventEmitter {
         this.children[childKey].delete()
       )
       if (opts.type === 'list') {
-        delete patch[`${this.key}/${childKey}`]
+        delete patch[`${this.prefix}${this.key}/${childKey}`]
       }
     })
     return patch
