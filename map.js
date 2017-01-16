@@ -123,20 +123,21 @@ module.exports = class HMap extends EventEmitter {
       child = this.children[childKey]
       if (child) continue
       changed = true
+      var Klass = HMap
       var link = links[childKey]
       var opts = link[0]
+      var key = link[1]
+      var prefix = ''
       if (opts.type === 'list') {
-        var foreignKey = link[1]
-        var key = typeof foreignKey === 'string'
-          ? link[1]
-          : this.prefix + this.key + '/' + childKey
-        var Klass = HList
-      } else {
-        key = link[1]
-        Klass = HMap
+        Klass = HList
+        if (typeof key === 'object') {
+          key = childKey
+          prefix = this.prefix + this.key
+        }
       }
       child = this.children[childKey] = new Klass(Object.assign({
         key,
+        prefix,
         storage: this.storage,
         debounce: 0
       }, opts))
