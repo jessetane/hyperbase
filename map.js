@@ -112,7 +112,12 @@ module.exports = class HMap extends EventEmitter {
     for (var childKey in this.children) {
       var child = this.children[childKey]
       var link = links[childKey]
-      if (link && link[1] === child.key) continue
+      if (link) {
+        var foreignKey = link[1]
+        if (foreignKey === child.key || typeof foreignKey === 'object') {
+          continue
+        }
+      }
       changed = true
       child.removeListener('error', this.onerror)
       child.removeListener('change', this.onchange)
