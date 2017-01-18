@@ -81,6 +81,8 @@ module.exports = class HList extends HMap {
   }
 
   unwatch () {
+    clearTimeout(this._watch)
+    if (!this.ref) return
     this.notFoundRef.off('value', this.onload)
     this.ref.off('child_added', this.onadd)
     this.ref.off('child_removed', this.onremove)
