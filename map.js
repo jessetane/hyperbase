@@ -40,8 +40,8 @@ module.exports = class HMap extends EventEmitter {
     return this._links
   }
 
-  set link (opts) {
-    this._links = opts
+  set link (links) {
+    this._links = links
     this.update()
   }
 
@@ -115,6 +115,10 @@ module.exports = class HMap extends EventEmitter {
       if (link) {
         var foreignKey = link[1]
         if (foreignKey === child.key || typeof foreignKey === 'object') {
+          var childLink = link[0].link
+          if (child.link !== childLink) {
+            child.link = childLink
+          }
           continue
         }
       }
