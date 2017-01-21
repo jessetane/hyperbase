@@ -152,7 +152,7 @@ module.exports = class HList extends HMap {
       }
     }
     return {
-      [`${this.key}/${key}`]: position
+      [`${this.prefix}${this.key}/${key}`]: position
     }
   }
 
