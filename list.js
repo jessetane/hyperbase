@@ -7,7 +7,6 @@ module.exports = class HList extends HMap {
     this.onadd = this.onadd.bind(this)
     this.onremove = this.onremove.bind(this)
     this.onreorder = this.onreorder.bind(this)
-    this.prefix = opts.prefix ? (opts.prefix + '/') : ''
     this._page = opts.page || 0
     this._pageSize = opts.pageSize || 9999
     this._reverse = opts.reverse
@@ -156,16 +155,18 @@ module.exports = class HList extends HMap {
     }
   }
 
-  serialize () {
+  denormalize () {
     if (this.cache) return this.cache
     var data = this.view
-      ? this.view.map(key => this.children[key].serialize())
+      ? this.view.map(key => this.children[key].denormalize())
       : []
+    var key = this.key
     Object.defineProperty(data, 'key', {
       enumerable: false,
-      get: () => this.key
+      get: () => key
     })
-    return this.cache = data
+    this.cache = data
+    return data
   }
 
   delete () {

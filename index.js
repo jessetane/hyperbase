@@ -20,24 +20,57 @@ module.exports = class Hyperbase extends EventEmitter {
     return !this.loading
   }
 
-  load (key, opts) {
+  mount (key, opts) {
     var Klass = opts.type === 'list' ? HList : HMap
-    var mount = new Klass(Object.assign({
+    return new Klass(Object.assign({
       key,
       storage: this.storage,
       debounce: 0
     }, opts))
+  }
+
+  read (key, opts, cb) {
+    if (!cb) {
+      cb = opts
+      opts = {}
+    }
+    var mount = this.mount(key, opts)
+    mount.on('error', ondone)
+    mount.on('change', onchange)
+    return mount
+    function ondone (err, data) {
+      mount.removeListener('error', ondone)
+      mount.removeListener('change', onchange)
+      mount.unwatch()
+      cb(err, data)
+    }
+    function onchange () {
+      if (mount.loading) return
+      if (mount.notFound) {
+        ondone(new Error('not found'))
+      } else {
+        ondone(null, mount.denormalize())
+      }
+    }
+  }
+
+  watch (key, opts = {}) {
+    var mount = this.mount(key, opts)
     mount.on('error', this.onerror)
     mount.on('change', this.onchange)
     this.mounts.push(mount)
     return mount
   }
 
-  unload (mount) {
+  unwatch (mount) {
     mount.removeListener('error', this.onerror)
     mount.removeListener('change', this.onchange)
     mount.unwatch()
     this.mounts = this.mounts.filter(m => m !== mount)
+  }
+
+  write (patch, cb) {
+    return this.storage.update(patch, cb)
   }
 
   create (n = 8) {
@@ -45,12 +78,8 @@ module.exports = class Hyperbase extends EventEmitter {
     return Array.from(b).map(c => c.toString(16)).join('')
   }
 
-  serialize () {
-    return this.mounts.map(mount => mount.serialize())
-  }
-
-  write (patch, cb) {
-    return this.storage.update(patch, cb)
+  denormalize () {
+    return this.mounts.map(mount => mount.denormalize())
   }
 
   onerror (err) {

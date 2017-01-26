@@ -11,6 +11,7 @@ module.exports = class HMap extends EventEmitter {
     this.onerror = this.onerror.bind(this)
     this.onchange = this.onchange.bind(this)
     this.key = opts.key
+    this._prefix = opts.prefix || ''
     this.prefix = opts.prefix ? (opts.prefix + '/') : ''
     this.storage = opts.storage
     this._links = opts.link
@@ -69,17 +70,19 @@ module.exports = class HMap extends EventEmitter {
     this.onvalue({ val: () => this.data })
   }
 
-  serialize () {
+  denormalize () {
     if (this.cache) return this.cache
     var data = this.data ? JSON.parse(this.hash) : {}
     this.forEachLink(this._links, data, (location, property, childKey, opts) => {
-      location[property] = this.children[childKey].serialize()
+      location[property] = this.children[childKey].denormalize()
     })
+    var key = this.key
     Object.defineProperty(data, 'key', {
       enumerable: false,
-      get: () => this.key
+      get: () => key
     })
-    return this.cache = data
+    this.cache = data
+    return data
   }
 
   delete () {
@@ -132,17 +135,17 @@ module.exports = class HMap extends EventEmitter {
       child = this.children[childKey]
       if (child) continue
       changed = true
-      var Klass = HMap
-      var link = links[childKey]
+      link = links[childKey]
       var opts = link[0]
       var key = link[1]
-      var prefix = ''
+      var prefix = this._prefix
+      var Klass = HMap
       if (opts.type === 'list') {
-        Klass = HList
         if (typeof key === 'object') {
           key = childKey
           prefix = this.prefix + this.key
         }
+        Klass = HList
       }
       child = this.children[childKey] = new Klass(Object.assign({
         key,
@@ -161,8 +164,10 @@ module.exports = class HMap extends EventEmitter {
   forEachLink (links, data, cb) {
     for (var path in links) {
       var opts = links[path]
+      if (typeof opts !== 'object') opts = {}
       var pointers = [[ data, '' ]]
       var components = path.split('/')
+      var wildComponent = 0
       components.forEach((component, i) => {
         var last = i === components.length - 1
         var nextPointers = []
@@ -171,9 +176,24 @@ module.exports = class HMap extends EventEmitter {
           if (!location || typeof location !== 'object') return
           var relpath = pointer[1]
           if (relpath) relpath += '/'
+          var property = null
           if (component === '*') {
-            for (var property in location) {
-              if (location[property] === undefined) continue
+            var filters = opts.wild
+              ? opts.wild[wildComponent]
+              : null
+            if (filters) {
+              for (var n = 0; n < filters.length; n++) {
+                var filter = filters[n]
+                for (var p in location) {
+                  if (location[p] === undefined) continue
+                  if (p === filter) {
+                    property = p
+                    break
+                  }
+                }
+                if (property) break
+              }
+              if (!property) return
               if (last) {
                 cb(location, property, relpath + property, opts)
               } else {
@@ -181,6 +201,18 @@ module.exports = class HMap extends EventEmitter {
                   location[property],
                   relpath + property
                 ])
+              }
+            } else {
+              for (property in location) {
+                if (location[property] === undefined) continue
+                if (last) {
+                  cb(location, property, relpath + property, opts)
+                } else {
+                  nextPointers.push([
+                    location[property],
+                    relpath + property
+                  ])
+                }
               }
             }
           } else if (location[component] !== undefined) {
@@ -195,6 +227,9 @@ module.exports = class HMap extends EventEmitter {
             }
           }
         })
+        if (component === '*') {
+          wildComponent++
+        }
         pointers = nextPointers
       })
     }

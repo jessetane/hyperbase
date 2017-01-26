@@ -10,7 +10,7 @@ I like the classic filesystem api a lot but it could be better:
 * clients should be able to read collections and their children wholesale and join on arbitrary symlinks
 
 ## How
-The current version depends on [Firebase](https://firebase.google.com) which is a commercial product and so that sucks. Also Firebase doesn't let you count child nodes in a collection without reading all of them so true pageable indexes are not possible. It does provide a lot of other useful features that I am not interested in reimplementing for the purposes of this sketch though, maybe you can suggest an alternative?
+The current version depends on [Firebase](https://firebase.google.com) which is a commercial product and so that's not ideal. Also Firebase doesn't let you count child nodes in a collection without reading all of them so true pageable indexes are not possible. It does provide a lot of other useful features that I am not interested in reimplementing for the purposes of this sketch though, maybe you can suggest an alternative?
 
 ## Examples
 Setup:
@@ -41,7 +41,7 @@ thing.on('change', () => {
   console.log(
     thing.loading,
     thing.key,
-    thing.serialize()
+    thing.denormalize()
   )
   // => false, 'a-thing', { name: 'A thing' }
 })
@@ -65,7 +65,7 @@ allTheThings.on('change', () => {
   console.log(
     loaded,
     length,
-    allTheThings.serialize().map(thing => thing.name)
+    allTheThings.denormalize().map(thing => thing.name)
   )
   // => false, 1000, [ 'A thing', 'Other thing', ... ]
 
@@ -87,7 +87,7 @@ const allTheThings = base.load('all-the-things', {
 })
 
 allTheThings.on('change', () => {
-  var things = allTheThings.serialize()
+  var things = allTheThings.denormalize()
   var firstThing = things[0]
   var secondThing = things[1]
 
@@ -131,7 +131,7 @@ const thing = base.load('some-thing', {
 })
 
 thing.on('change', () => {
-  console.log(thing.serialize())
+  console.log(thing.denormalize())
 
   // 1st time
   // => {
@@ -190,7 +190,7 @@ person.on('change', () => {
     return
   }
 
-  console.log(person.serialize())
+  console.log(person.denormalize())
   // => {
   //   name: 'A person',
   //   bestFriend: 'some-person',
@@ -239,6 +239,12 @@ thing.on('change', () => {
     base.unload(thing)
   })
 })
+```
+
+## Test
+You'll need a Firebase and service account credentials in a file called `google.json` first, then do:
+```shell
+$ npm run test
 ```
 
 ## Pros
