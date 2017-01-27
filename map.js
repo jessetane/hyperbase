@@ -73,18 +73,25 @@ module.exports = class HMap extends EventEmitter {
     this.onvalue({ val: () => this.data })
   }
 
-  denormalize () {
-    if (this.cache) return this.cache
-    var data = this.data ? JSON.parse(this.hash) : {}
+  denormalize (cacheBehavior = 1) {
+    var data = this.cache
+    if (!cacheBehavior || !data) {
+      data = this.data ? JSON.parse(this.hash) : {}
+      var key = this.key
+      Object.defineProperty(data, 'key', {
+        enumerable: false,
+        get: () => key
+      })
+      this.cache = data
+    } else if (cacheBehavior === 1 && data) {
+      return data
+    }
     this.forEachLink(this._links, data, (location, property, childKey, opts) => {
-      location[property] = this.children[childKey].denormalize()
+      var child = this.children[childKey]
+      if (child) {
+        location[property] = child.denormalize(cacheBehavior)
+      }
     })
-    var key = this.key
-    Object.defineProperty(data, 'key', {
-      enumerable: false,
-      get: () => key
-    })
-    this.cache = data
     return data
   }
 

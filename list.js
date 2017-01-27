@@ -160,17 +160,28 @@ module.exports = class HList extends HMap {
     }
   }
 
-  denormalize () {
-    if (this.cache) return this.cache
-    var data = this.view
-      ? this.view.map(key => this.children[key].denormalize())
-      : []
-    var key = this.key
-    Object.defineProperty(data, 'key', {
-      enumerable: false,
-      get: () => key
-    })
-    this.cache = data
+  denormalize (cacheBehavior = 1) {
+    var data = this.cache
+    if (!cacheBehavior || !data) {
+      data = this.view
+        ? this.view.map(key => this.children[key].denormalize(cacheBehavior))
+        : []
+      var key = this.key
+      Object.defineProperty(data, 'key', {
+        enumerable: false,
+        get: () => key
+      })
+      this.cache = data
+    } else if (cacheBehavior === 1 && data) {
+      return data
+    } else {
+      data.forEach((child, i) => {
+        var child = this.children[child.key]
+        if (child) {
+          data[i] = child.denormalize(cacheBehavior)
+        }
+      })
+    }
     return data
   }
 
