@@ -220,6 +220,39 @@ tape('join on wildcard links that match wild filter', t => {
   })
 })
 
+tape('join on wildcard links that match wild filter with regex', t => {
+  t.plan(1)
+
+  var map = hb.watch('c-thing', {
+    prefix: 'things',
+    link: {
+      'i18n/*': {
+        prefix: 'i18n',
+        wild: [
+          [/.*/]
+        ]
+      }
+    }
+  })
+
+  map.on('error', t.fail)
+
+  map.on('change', () => {
+    if (map.loading) return
+    var data = map.denormalize()
+    t.deepEqual(data, {
+      name: 'Some thing',
+      i18n: {
+        es: {
+          name: 'Alguna cosa'
+        },
+        'es-ES': 'f28de'
+      }
+    })
+    hb.unwatch(map)
+  })
+})
+
 tape('join on nested wildcard links', t => {
   t.plan(1)
 

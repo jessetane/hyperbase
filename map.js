@@ -196,11 +196,19 @@ module.exports = class HMap extends EventEmitter {
             if (filters) {
               for (var n = 0; n < filters.length; n++) {
                 var filter = filters[n]
+                var isString = typeof filter === 'string'
                 for (var p in location) {
                   if (location[p] === undefined) continue
-                  if (p === filter) {
-                    property = p
-                    break
+                  if (isString) {
+                    if (p === filter) {
+                      property = p
+                      break
+                    }
+                  } else {
+                    if (filter.test(p)) {
+                      property = p
+                      break
+                    }
                   }
                 }
                 if (property) break
