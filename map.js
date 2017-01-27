@@ -13,6 +13,7 @@ module.exports = class HMap extends EventEmitter {
     this.key = opts.key
     this._prefix = opts.prefix || ''
     this.prefix = opts.prefix ? (opts.prefix + '/') : ''
+    this.root = opts.root || this
     this.storage = opts.storage
     this._links = opts.link
     this.debounce = opts.debounce === undefined ? 25 : opts.debounce
@@ -61,7 +62,9 @@ module.exports = class HMap extends EventEmitter {
     if (!this.ref) return
     this.ref.off('value', this.onvalue)
     for (var key in this.children) {
-      this.children[key].unwatch()
+      var child = this.children[key]
+      child.unwatch()
+      delete child.root
     }
     this.children = {}
   }
@@ -136,6 +139,7 @@ module.exports = class HMap extends EventEmitter {
       child.removeListener('error', this.onerror)
       child.removeListener('change', this.onchange)
       child.unwatch()
+      delete child.root
       delete this.children[childKey]
     }
     for (childKey in links) {
@@ -157,6 +161,7 @@ module.exports = class HMap extends EventEmitter {
       child = this.children[childKey] = new Klass(Object.assign({
         key,
         prefix,
+        root: this.root,
         storage: this.storage,
         debounce: 0
       }, opts))

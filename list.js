@@ -91,6 +91,7 @@ module.exports = class HList extends HMap {
       var child = this.children[key]
       child.removeListener('change', this.onchange)
       child.unwatch()
+      delete child.root
     }
     this.children = {}
     delete this.data
@@ -112,6 +113,7 @@ module.exports = class HList extends HMap {
         child.removeListener('error', this.onerror)
         child.removeListener('change', this.onchange)
         child.unwatch()
+        delete child.root
         delete this.children[key]
       } else if (child.link !== this._each.link) {
         child.link = this._each.link
@@ -123,6 +125,7 @@ module.exports = class HList extends HMap {
         var Klass = this._each.type === 'list' ? HList : HMap
         child = this.children[key] = new Klass(Object.assign({
           key,
+          root: this.root,
           storage: this.storage,
           debounce: 0
         }, this._each))
