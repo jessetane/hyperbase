@@ -118,9 +118,16 @@ module.exports = class HMap extends EventEmitter {
       if (link) {
         var foreignKey = link[1]
         if (foreignKey === child.key || typeof foreignKey === 'object') {
-          var childLink = link[0].link
-          if (child.link !== childLink) {
-            child.link = childLink
+          if (child._each) {
+            var childEach = link[0].each
+            if (child._each !== childEach) {
+              child.each = childEach
+            }
+          } else {
+            var childLink = link[0].link
+            if (child.link !== childLink) {
+              child.link = childLink
+            }
           }
           continue
         }

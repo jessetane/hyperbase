@@ -113,6 +113,8 @@ module.exports = class HList extends HMap {
         child.removeListener('change', this.onchange)
         child.unwatch()
         delete this.children[key]
+      } else if (child.link !== this._each.link) {
+        child.link = this._each.link
       }
     }
     for (key in pageKeys) {
