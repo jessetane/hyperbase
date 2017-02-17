@@ -29,6 +29,9 @@ module.exports = class HList extends HMap {
 
   set pageSize (pageSize) {
     if (!pageSize || pageSize === this._pageSize) return
+    if (this._page > 0) {
+      this._page = Math.round(this._pageSize * this._page / pageSize)
+    }
     this._pageSize = pageSize
     this.update()
   }
