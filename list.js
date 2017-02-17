@@ -14,8 +14,9 @@ module.exports = class HList extends HMap {
   }
 
   get loading () {
-    if (this.data === null) return false
-    if (this.list === undefined) return true
+    if (this.data === undefined || this.list === undefined) {
+      return true
+    }
     for (var key in this.children) {
       if (this.children[key].loading) return true
     }
@@ -69,7 +70,7 @@ module.exports = class HList extends HMap {
     this.notFoundRef = this.storage.child(this.prefix + this.key).limitToLast(1)
     this.notFoundRef.once('value', this.onload, err => {
       err.target = this
-      this.data = null
+      this.data = {}
       this.emit('error', err)
       this.onchange()
     })
@@ -202,7 +203,8 @@ module.exports = class HList extends HMap {
 
   onload (snap) {
     if (snap.val() === null) {
-      this.data = null
+      this.data = {}
+      this.list = []
       this.onchange()
     }
   }
