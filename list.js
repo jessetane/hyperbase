@@ -42,6 +42,13 @@ module.exports = class HList extends HMap {
 
   set page (page) {
     if (page === this._page) return
+    if (page < 0 || this.length <= this._pageSize) {
+      page = 0
+    } else if (page > this._page) {
+      if (this.length - page * this._pageSize < this._pageSize) {
+        page = (this.length - this._pageSize) / this._pageSize
+      }
+    }
     this._page = page
     this.update()
   }
