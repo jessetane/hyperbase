@@ -54,7 +54,7 @@ module.exports = class HList extends HMap {
   }
 
   get length () {
-    return this.loading ? 0 : this.data.length
+    return this.list ? this.list.length : 0
   }
 
   get each () {
