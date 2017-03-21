@@ -267,7 +267,8 @@ module.exports = class HMap extends EventEmitter {
     this.emit('error', err)
   }
 
-  onchange (evt) {
+  onchange (evt = {}) {
+    if (!evt.target) evt.target = this
     delete this.cache
     if (this.debounce) {
       clearTimeout(this._debounce)
