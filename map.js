@@ -1,13 +1,12 @@
 var EventEmitter = require('events')
-var HList = null // require() can't handle circular deps so we grab this at runtime
+var HyperList = null // require() can't handle circular deps so we resolve this lazily
 
-module.exports = class HMap extends EventEmitter {
+module.exports = class HyperMap extends EventEmitter {
   constructor (opts) {
     super()
-    if (HList === null) {
-      HList = require('./list')
+    if (HyperList === null) {
+      HyperList = require('./list')
     }
-    this.onvalue = this.onvalue.bind(this)
     this.onerror = this.onerror.bind(this)
     this.onchange = this.onchange.bind(this)
     this.key = opts.key
@@ -18,7 +17,7 @@ module.exports = class HMap extends EventEmitter {
     this._links = opts.link
     this.debounce = opts.debounce === undefined ? 25 : opts.debounce
     this.children = {}
-    this._watch = setTimeout(() => this.watch())
+    this._autoWatch = setTimeout(() => this.watch())
   }
 
   get loading () {
@@ -48,8 +47,8 @@ module.exports = class HMap extends EventEmitter {
   }
 
   watch () {
-    this.ref = this.storage.child(this.prefix + this.key)
-    this.ref.on('value', this.onvalue, err => {
+    delete this.data
+    this.storage.watch(this, err => {
       err.target = this
       this.data = null
       this.emit('error', err)
@@ -58,11 +57,12 @@ module.exports = class HMap extends EventEmitter {
   }
 
   unwatch () {
-    clearTimeout(this._watch)
-    if (!this.ref) return
-    this.ref.off('value', this.onvalue)
+    clearTimeout(this._autoWatch)
+    this.storage.unwatch(this)
     for (var key in this.children) {
       var child = this.children[key]
+      child.removeListener('error', this.onerror)
+      child.removeListener('change', this.onchange)
       child.unwatch()
       delete child.root
     }
@@ -70,53 +70,10 @@ module.exports = class HMap extends EventEmitter {
   }
 
   update () {
-    this.onvalue({ val: () => this.data })
-  }
-
-  denormalize (cacheBehavior = 1) {
-    var data = this.cache
-    if (!cacheBehavior || !data) {
-      data = this.data ? JSON.parse(this.hash) : {}
-      var key = this.key
-      Object.defineProperty(data, 'key', {
-        enumerable: false,
-        get: () => key
-      })
-      this.cache = data
-    } else if (cacheBehavior === 1 && data) {
-      return data
-    }
-    this.forEachLink(this._links, data, (location, property, childKey, opts) => {
-      var child = this.children[childKey]
-      if (child) {
-        location[property] = child.denormalize(cacheBehavior)
-      }
-    })
-    return data
-  }
-
-  delete () {
-    if (this.loading) throw new Error('cannot delete items that have not loaded')
-    var patch = {
-      [this.prefix + this.key]: null
-    }
-    this.forEachLink(this._links, this.data, (location, property, childKey, opts) => {
-      Object.assign(
-        patch,
-        this.children[childKey].delete()
-      )
-      if (opts.type === 'list') {
-        delete patch[`${this.prefix}${this.key}/${childKey}`]
-      }
-    })
-    return patch
-  }
-
-  onvalue (snap) {
-    var data = snap.val()
+    if (this.loading) return
+    var data = this.data
     var hash = JSON.stringify(data)
-    var changed = this.data === undefined || hash !== this.hash
-    this.data = data
+    var changed = hash !== this.hash
     this.hash = hash
     var links = {}
     this.forEachLink(this._links, data, (location, property, childKey, opts) => {
@@ -157,13 +114,13 @@ module.exports = class HMap extends EventEmitter {
       var opts = link[0]
       var key = link[1]
       var prefix = this._prefix
-      var Klass = HMap
+      var Klass = HyperMap
       if (opts.type === 'list') {
         if (typeof key === 'object') {
           key = childKey
           prefix = this.prefix + this.key
         }
-        Klass = HList
+        Klass = HyperList
       }
       child = this.children[childKey] = new Klass(Object.assign({
         key,
@@ -260,6 +217,40 @@ module.exports = class HMap extends EventEmitter {
         pointers = nextPointers
       })
     }
+  }
+
+  denormalize (cacheBehavior = 1) {
+    var data = this.cache
+    if (!cacheBehavior || !data) {
+      data = this.data ? JSON.parse(this.hash) : {}
+      var key = this.key
+      Object.defineProperty(data, 'key', {
+        enumerable: false,
+        get: () => key
+      })
+      this.cache = data
+    } else if (cacheBehavior === 1 && data) {
+      return data
+    }
+    this.forEachLink(this._links, data, (location, property, childKey, opts) => {
+      var child = this.children[childKey]
+      if (child) {
+        location[property] = child.denormalize(cacheBehavior)
+      }
+    })
+    return data
+  }
+
+  delete () {
+    if (this.loading) throw new Error('cannot delete items that have not loaded')
+    var patch = this.storage.delete(this)
+    this.forEachLink(this._links, this.data, (location, property, childKey, opts) => {
+      Object.assign(
+        patch,
+        this.children[childKey].delete()
+      )
+    })
+    return patch
   }
 
   onerror (err) {

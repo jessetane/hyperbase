@@ -1,20 +1,18 @@
-var HMap = require('./map')
+var HyperMap = require('./map')
 
-module.exports = class HList extends HMap {
+module.exports = class HyperList extends HyperMap {
   constructor (opts) {
     super(opts)
-    this.onload = this.onload.bind(this)
-    this.onadd = this.onadd.bind(this)
-    this.onremove = this.onremove.bind(this)
-    this.onreorder = this.onreorder.bind(this)
     this._page = opts.page || 0
     this._pageSize = opts.pageSize || 9999
     this._reverse = opts.reverse
     this._each = opts.each || { type: 'map' }
+    this.type = 'list'
+    this.size = 0
   }
 
   get loading () {
-    if (this.data === undefined || this.list === undefined) {
+    if (this.data === undefined) {
       return true
     }
     for (var key in this.children) {
@@ -33,7 +31,7 @@ module.exports = class HList extends HMap {
       this._page = Math.round(this._pageSize * this._page / pageSize)
     }
     this._pageSize = pageSize
-    this.update()
+    this.storage.update(this)
   }
 
   get page () {
@@ -42,15 +40,15 @@ module.exports = class HList extends HMap {
 
   set page (page) {
     if (page === this._page) return
-    if (page < 0 || this.length <= this._pageSize) {
+    if (page < 0 || this.size <= this._pageSize) {
       page = 0
     } else if (page > this._page) {
-      if (this.length - page * this._pageSize < this._pageSize) {
-        page = (this.length - this._pageSize) / this._pageSize
+      if (this.size - page * this._pageSize < this._pageSize) {
+        page = (this.size - this._pageSize) / this._pageSize
       }
     }
     this._page = page
-    this.update()
+    this.storage.update(this)
   }
 
   get reverse () {
@@ -60,11 +58,7 @@ module.exports = class HList extends HMap {
   set reverse (reverse) {
     if (reverse === this.reverse) return
     this._reverse = reverse
-    this.update()
-  }
-
-  get length () {
-    return this.list ? this.list.length : 0
+    this.storage.update(this)
   }
 
   get each () {
@@ -73,54 +67,18 @@ module.exports = class HList extends HMap {
 
   set each (opts) {
     this._each = opts
-    this.update()
-  }
-
-  watch () {
-    this.notFoundRef = this.storage.child(this.prefix + this.key).limitToLast(1)
-    this.notFoundRef.once('value', this.onload, err => {
-      err.target = this
-      this.data = {}
-      this.emit('error', err)
-      this.onchange()
-    })
-    this.ref = this.storage.child(this.prefix + this.key).orderByValue()
-    this.ref.on('child_added', this.onadd)
-    this.ref.on('child_removed', this.onremove)
-    this.ref.on('child_changed', this.onreorder)
-  }
-
-  unwatch () {
-    clearTimeout(this._watch)
-    if (!this.ref) return
-    this.notFoundRef.off('value', this.onload)
-    this.ref.off('child_added', this.onadd)
-    this.ref.off('child_removed', this.onremove)
-    this.ref.off('child_changed', this.onreorder)
-    delete this.ref
-    for (var key in this.children) {
-      var child = this.children[key]
-      child.removeListener('change', this.onchange)
-      child.unwatch()
-      delete child.root
-    }
-    this.children = {}
-    delete this.data
-    delete this.list
+    this.storage.update(this)
   }
 
   update () {
-    if (!this.ref) return
-    var offset = this.pageSize * this.page
-    var data = this.data
-    this.list = Object.keys(data)
-      .sort((a, b) => this._reverse ? data[b] - data[a] : data[a] - data[b])
-    this.view = this.list.slice(offset, offset + this.pageSize)
-    var pageKeys = {}
-    this.view.forEach(key => { pageKeys[key] = true })
+    if (this.loading) return
+    var items = {}
+    this.data.forEach(item => {
+      items[item.key] = true
+    })
     for (var key in this.children) {
       var child = this.children[key]
-      if (!pageKeys[key]) {
+      if (!items[key]) {
         child.removeListener('error', this.onerror)
         child.removeListener('change', this.onchange)
         child.unwatch()
@@ -130,10 +88,10 @@ module.exports = class HList extends HMap {
         child.link = this._each.link
       }
     }
-    for (key in pageKeys) {
+    for (key in items) {
       child = this.children[key]
       if (!child) {
-        var Klass = this._each.type === 'list' ? HList : HMap
+        var Klass = this._each.type === 'list' ? HyperList : HyperMap
         child = this.children[key] = new Klass(Object.assign({
           key,
           root: this.root,
@@ -148,34 +106,53 @@ module.exports = class HList extends HMap {
   }
 
   reorder (key, pagePosition = 0) {
-    var offset = this.pageSize * this.page + pagePosition
-    var current = this.data[this.list[offset]]
     var position = null
-    if (current <= this.data[key]) {
-      var before = offset > 0 ? this.data[this.list[offset - 1]] : undefined
-      if (before === undefined) {
-        position = current - 1
+    var from = null
+    var to = null
+    var before = null
+    var after = null
+    var i = 0
+    while (i < this.data.length) {
+      var item = this.data[i]
+      if (item.key === key) {
+        from = item
+        if (to) break
+      } else if (i === pagePosition) {
+        to = item
+        before = this.data[i - 1]
+        after = this.data[i + 1]
+        if (from) break
+      }
+      i++
+    }
+    if (!from) {
+      throw new Error('missing item')
+    } else if (!before && this.page > 0) {
+      throw new Error('missing item before')
+    } else if (!after && this.page !== Math.ceil(this.size / this.pageSize) - 1) {
+      throw new Error('missing item after')
+    }
+    if (to.order <= from.order) {
+      if (before) {
+        position = to.order - (to.order - before.order) / 2
       } else {
-        position = current - (current - before) / 2
+        position = to.order - 1
       }
     } else {
-      var after = this.data[this.list[offset + 1]]
-      if (after === undefined) {
-        position = current + 1
+      if (after) {
+        position = to.order + (after.order - to.order) / 2
       } else {
-        position = current + (after - current) / 2
+        position = to.order + 1
       }
     }
-    return {
-      [`${this.prefix}${this.key}/${key}`]: position
-    }
+    return this.storage.reorder(this, key, position)
   }
 
   denormalize (cacheBehavior = 1) {
     var data = this.cache
     if (!cacheBehavior || !data) {
-      data = this.view
-        ? this.view.map(key => this.children[key].denormalize(cacheBehavior))
+      data = this.data
+        ? this.data.map(item => this.children[item.key].denormalize(cacheBehavior))
         : []
       var key = this.key
       Object.defineProperty(data, 'key', {
@@ -187,7 +164,7 @@ module.exports = class HList extends HMap {
       return data
     } else {
       data.forEach((child, i) => {
-        var child = this.children[child.key]
+        child = this.children[child.key]
         if (child) {
           data[i] = child.denormalize(cacheBehavior)
         }
@@ -198,43 +175,14 @@ module.exports = class HList extends HMap {
 
   delete () {
     if (this.loading) throw new Error('cannot delete items that have not loaded')
-    if (this.pageSize < this.length) throw new Error('cannot delete because page size is smaller than the amount of total items')
-    var patch = {
-      [this.prefix + this.key]: null
-    }
-    this.view.map(key => {
+    if (this.pageSize < this.size) throw new Error('cannot delete because page size is smaller than the amount of total items')
+    var patch = this.storage.delete(this)
+    this.data.map(item => {
       Object.assign(
         patch,
-        this.children[key].delete()
+        this.children[item.key].delete()
       )
     })
     return patch
-  }
-
-  onload (snap) {
-    if (snap.val() === null) {
-      this.data = {}
-      this.list = []
-      this.onchange()
-    }
-  }
-
-  onadd (snap) {
-    this.data = this.data || {}
-    this.data[snap.key] = snap.val()
-    clearTimeout(this._addDebounce)
-    this._addDebounce = setTimeout(() => {
-      this.update()
-    }, 20)
-  }
-
-  onremove (snap) {
-    delete this.data[snap.key]
-    this.update()
-  }
-
-  onreorder (snap) {
-    this.data[snap.key] = snap.val()
-    this.update()
   }
 }

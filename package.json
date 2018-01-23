@@ -12,12 +12,13 @@
   "scripts": {
     "lint": "standard",
     "test": "node test",
-    "debug": "node --inspect --debug-brk test"
+    "debug": "node --inspect --inspect-brk test"
   },
   "devDependencies": {
-    "firebase-admin": "^4.0.6",
     "standard": "^8.6.0",
-    "tape": "^4.6.3"
+    "tape": "^4.8.0",
+    "firebase-admin": "^5.8.1",
+    "firebase-tools": "^3.17.3"
   },
   "repository": "https://github.com/jessetane/hyperbase.git",
   "author": "jesse.tane@gmail.com",

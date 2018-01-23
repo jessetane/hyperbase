@@ -70,7 +70,7 @@ module.exports = class Hyperbase extends EventEmitter {
   }
 
   write (patch, cb) {
-    return this.storage.update(patch, cb)
+    return this.storage.write(patch, cb)
   }
 
   create (n = 8) {
