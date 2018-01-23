@@ -1,6 +1,6 @@
 var EventEmitter = require('events')
-var HList = require('./list')
-var HMap = require('./map')
+var HyperList = require('./list')
+var HyperMap = require('./map')
 
 module.exports = class Hyperbase extends EventEmitter {
   constructor (opts) {
@@ -21,7 +21,7 @@ module.exports = class Hyperbase extends EventEmitter {
   }
 
   mount (key, opts) {
-    var Klass = opts.type === 'list' ? HList : HMap
+    var Klass = opts.type === 'list' ? HyperList : HyperMap
     return new Klass(Object.assign({
       key,
       storage: this.storage,
@@ -87,6 +87,6 @@ module.exports = class Hyperbase extends EventEmitter {
   }
 
   onchange (evt) {
-    HMap.prototype.onchange.call(this, evt)
+    HyperMap.prototype.onchange.call(this, evt)
   }
 }
