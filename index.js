@@ -74,8 +74,11 @@ module.exports = class Hyperbase extends EventEmitter {
   }
 
   create (n = 8) {
-    var b = window.crypto.getRandomValues(new Uint8Array(n))
-    return Array.from(b).map(c => c.toString(16)).join('')
+    var key = ''
+    while (n--) {
+      key += (Math.floor(Math.random() * 256)).toString(36)
+    }
+    return key
   }
 
   denormalize () {
