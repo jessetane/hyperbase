@@ -64,14 +64,11 @@ tape('join on links', t => {
     var data = map.denormalize()
 
     t.deepEqual(data, {
-      id: 'a',
       name: 'name a',
       messages: [
         {
-          id: 'x',
           message: 'message x'
         }, {
-          id: 'y',
           message: 'message y'
         }
       ]
@@ -100,15 +97,12 @@ tape('join on wildcard links', t => {
     var data = map.denormalize()
 
     t.deepEqual(data, {
-      id: 'z',
       message: 'message z',
       i18n: {
         es: {
-          id: 'c3dda',
           name: 'Alguna cosa'
         },
         'es-ES': {
-          id: 'f28de',
           name: 'Alguna cosita'
         }
       }

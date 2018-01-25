@@ -1,7 +1,7 @@
 module.exports = class HyperbaseStorageFirestore {
   constructor (firestore) {
-    this.firestore = firestore
     this.db = firestore()
+    this.docIdFieldPath = firestore.FieldPath.documentId()
     this.observers = new Map()
   }
 
@@ -9,7 +9,7 @@ module.exports = class HyperbaseStorageFirestore {
     var parts = (observer.prefix + observer.key).split('/')
     var ckey = parts.slice(0, -1).join('/')
     var dkey = parts[parts.length - 1]
-    var ref = this.db.collection(ckey).where('id', '==', dkey)
+    var ref = this.db.collection(ckey).orderBy(this.docIdFieldPath).startAt(dkey).endAt(dkey).limit(1)
     var meta = { ref }
     this.observers.set(observer, meta)
     meta.unwatch = ref.onSnapshot(snap => {

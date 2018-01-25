@@ -5,7 +5,6 @@ var google = require('../../google.json')
 var fixture = {
   indexes: {
     rooms: {
-      id: 'rooms',
       items: {
         a: {
           i: 0
@@ -16,7 +15,6 @@ var fixture = {
       }
     },
     'messages-by-room-a': {
-      id: 'messages-by-room-a',
       items: {
         x: {
           i: 0
@@ -27,7 +25,6 @@ var fixture = {
       }
     },
     'messages-by-room-b': {
-      id: 'messages-by-room-b',
       items: {
         z: {
           i: 0
@@ -37,26 +34,21 @@ var fixture = {
   },
   rooms: {
     a: {
-      id: 'a',
       name: 'name a',
       messages: 'messages-by-room-a'
     },
     b: {
-      id: 'b',
       name: 'name b'
     }
   },
   messages: {
     x: {
-      id: 'x',
       message: 'message x'
     },
     y: {
-      id: 'y',
       message: 'message y'
     },
     z: {
-      id: 'z',
       message: 'message z',
       i18n: {
         es: 'c3dda',
@@ -66,11 +58,9 @@ var fixture = {
   },
   i18n: {
     c3dda: {
-      id: 'c3dda',
       name: 'Alguna cosa'
     },
     f28de: {
-      id: 'f28de',
       name: 'Alguna cosita'
     }
   }
