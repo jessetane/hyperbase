@@ -2,38 +2,42 @@
 A general purpose storage interface
 
 ## Why
-I like the classic filesystem api a lot but it could be better:
+I like the unix filesystem API a lot but it could be better:
 * watch / unwatch should be as easy to use as read()
 * it should be possible to atomically write data at multiple paths
-* there should be an index or list type collection in addition to directories
+* clients should be able to resolve arbitrary symlinks
+* directories are great but there should also be an index or list type collection
   * these should be pageable in either direction and cheaply reorderable
-* clients should be able to read collections and their children wholesale and join on arbitrary symlinks
+  * these should provide a mechanism for determining total item count without loading all data
 
 ## How
-The current version depends on [Firebase](https://firebase.google.com) which is a commercial product and so that's not ideal. Also Firebase doesn't let you count child nodes in a collection without reading all of them so true pageable indexes are not possible. It does provide a lot of other useful features that I am not interested in reimplementing for the purposes of this sketch though, maybe you can suggest an alternative?
+The concept and library itself aims to be abstract, but each storage engine requires a concrete driver implementation. Currently there is [a driver](https://github.com/jessetane/hyperbase/blob/master/storage/firestore) available for [Cloud Firestore](https://firebase.google.com/docs/firestore) (Note that to work properly, the Firestore implementation relies on two [Cloud Functions](https://github.com/jessetane/hyperbase/blob/master/storage/functions)). It should be possible to implement additional drivers even over simple key/value stores like lmdb or leveldb for example, although these would be considerably more complex (no built in transactions, events, security, etc).
 
 ## Examples
 Setup:
 ``` javascript
-import Firebase from 'firebase'
-
-const remote = Firebase.initializeApp({
-  apiKey: process.env.FIREBASE_CLIENT_ID,
-  authDomain: `${process.env.FIREBASE_APP_ID}.firebaseapp.com`,
-  databaseURL: `https://${process.env.FIREBASE_APP_ID}.firebaseio.com`,
-  storageBucket: `${process.env.FIREBASE_APP_ID}.appspot.com`,
-})
-
 import Hyperbase from 'hyperbase'
+import HyperbaseStorageFirestore from 'hyperbase/storage/firestore'
 
-const base = new Hyperbase({
-  storage: remote.database().ref()
+// var firebase = <get firebase handle somehow>
+
+const db = new Hyperbase({
+  storage: new HyperbaseStorageFirestore(firebase.firestore)
 })
 ```
 
 Working with Maps:
 ``` javascript
-const thing = base.load('a-thing', {
+// storage layout:
+// {
+//   things: {
+//     'a-thing': {
+//       name: 'A thing'
+//     }
+//   }
+// }
+
+const thing = db.watch('things/a-thing', {
   type: 'map'
 })
 
@@ -49,13 +53,35 @@ thing.on('change', () => {
 
 Working with Lists:
 ``` javascript
-const allTheThings = base.load('all-the-things', {
+// storage layout:
+// {
+//   lists: {
+//     'all-the-things': {
+//       size: 2,
+//       items: {
+//         'a-thing': { i: 0 },
+//         'other-thing': { i: 1 }
+//       }
+//     }
+//   },
+//   things: {
+//     'a-thing': {
+//       name: 'A thing'
+//     },
+//     'other-thing': {
+//       name: 'Other thing'
+//     }
+//   }
+// }
+
+const allTheThings = db.watch('lists/all-the-things', {
   type: 'list',
   page: 0,
   pageSize: 10,
   reverse: false,
   each: {
-    type: 'map'
+    type: 'map',
+    prefix: 'things'
   }
 })
 
@@ -70,6 +96,7 @@ allTheThings.on('change', () => {
   // => false, 1000, [ 'A thing', 'Other thing', ... ]
 
   if (!loading && (page + 1) * pageSize < length) {
+    // load the next page if there is one
     allTheThings.page++
   }
 })
@@ -77,16 +104,19 @@ allTheThings.on('change', () => {
 
 Reordering list items:
 ``` javascript
-const allTheThings = base.load('all-the-things', {
+const allTheThings = db.watch('lists/all-the-things', {
   type: 'list',
   page: 0,
   pageSize: 10,
   each: {
-    type: 'map'
+    type: 'map',
+    prefix: 'things'
   }
 })
 
 allTheThings.on('change', () => {
+  if (allTheThings.loading) return
+
   var things = allTheThings.denormalize()
   var firstThing = things[0]
   var secondThing = things[1]
@@ -96,8 +126,10 @@ allTheThings.on('change', () => {
     secondThing.key,
     pageRelativeDestinationIndex
   )
+  console.log(patch)
+  // => { 'lists/all-the-things/items/other-thing': { order: -1 } }
 
-  base.write(patch, err => {
+  db.write(patch, err => {
     app.log(err || 'Reordered successfully')
   })
 })
@@ -105,15 +137,15 @@ allTheThings.on('change', () => {
 
 Creating data:
 ``` javascript
-const randomKey = base.create()
+const randomKey = db.create()
 
 const aNewThing = {
   name: 'A new thing'
 }
 
-base.write({
+db.write({
   [randomKey]: aNewThing,
-  [`all-the-things/${randomKey}`]: Date.now(),
+  [`lists/all-the-things/items/${randomKey}`]: { order: Date.now() }
 }, err => {
   console.log(err || 'It worked')
 })
@@ -121,7 +153,28 @@ base.write({
 
 Working with links:
 ``` javascript
-const thing = base.load('some-thing', {
+// storage layout:
+// {
+//   things: {
+//     'some-thing': {
+//       name: 'Some thing',
+//       i18n: {
+//         es: 'x',
+//         fr: 'y'
+//       }
+//     }
+//   },
+//   i18n: {
+//     x: {
+//       name: 'Alguna cosa'
+//     },
+//     y: {
+//       name: 'Quelque chose'
+//     }
+//   }
+// }
+
+const thing = db.watch('things/some-thing', {
   type: 'map',
   link: {
     'i18n/es': {
@@ -140,7 +193,7 @@ thing.on('change', () => {
   //     es: {
   //       name: 'Alguna cosa'
   //     },
-  //     fr: 'key-for-french-translation'
+  //     fr: 'y'
   //   }
   // }
 
@@ -165,17 +218,45 @@ thing.on('change', () => {
 })
 ```
 
-Nested relationships:
+Nested links (and embedded Lists):
 ``` javascript
-const person = base.load('a-person', {
-  type: 'map',
+// storage layout:
+// {
+//   people: {
+//     'a-person': {
+//       name: 'A person',
+//       'best-friend': 'b-person',
+//       friends: {
+//         'b-person': 0,
+//         'c-person': 1
+//       }
+//     },
+//     'b-person': {
+//       name: 'B person',
+//       'best-friend': 'c-person',
+//       friends: {
+//         'a-person': 0,
+//         'c-person': 1
+//       }
+//     },
+//     'c-person': {
+//       name: 'C person',
+//       'best-friend': 'a-person',
+//       friends: {
+//         'a-person': 0,
+//         'b-person': 1
+//       }
+//     }
+//   }
+// }
+
+const person = db.watch('a-person', {
   link: {
     friends: {
       type: 'list',
       each: {
-        type: 'map',
         link: {
-          bestFriend: {
+          'best-friend': {
             type: 'map'
           }
         }
@@ -193,16 +274,16 @@ person.on('change', () => {
   console.log(person.denormalize())
   // => {
   //   name: 'A person',
-  //   bestFriend: 'some-person',
+  //   'best-friend': 'b-person',
   //   friends: [
   //     {
   //       name: 'B person',
   //       bestFriend: {
   //         name: 'C person',
-  //         bestFriend: 'b-person',
-  //         friends: { 'b-person': 1480476889245, ... }
+  //         'best-friend': 'a-person',
+  //         friends: { 'a-person': 0, ... }
   //       },
-  //       friends: { 'c-person': 1480476889246, ... }
+  //       friends: { 'a-person': 0, ... }
   //     }, {
   //       ...
   //     }
@@ -213,8 +294,7 @@ person.on('change', () => {
 
 Deleting data:
 ``` javascript
-const thing = base.load('some-thing', {
-  type: 'map',
+const thing = db.watch('things/some-thing', {
   link: {
     'i18n/*': {
       type: 'map'
@@ -227,16 +307,16 @@ thing.on('change', () => {
 
   console.log(patch)
   // => {
-  //   'some-thing': null,
-  //   'es-b-thing': null,
-  //   'fr-b-thing': null
+  //   'things/some-thing': null,
+  //   'i18n/x': null,
+  //   'i18n/y': null
   // }
 
-  patch['all-the-things/some-thing'] = null
+  patch['lists/all-the-things/items/some-thing'] = null
 
-  base.write(patch, err => {
+  db.write(patch, err => {
     console.log(err || 'It worked')
-    base.unload(thing)
+    db.unwatch(thing)
   })
 })
 ```
@@ -244,16 +324,20 @@ thing.on('change', () => {
 ## Test
 You'll need a Firebase and service account credentials in a file called `google.json` first, then do:
 ```shell
-$ npm run test
+$ npm run test/firestore
 ```
 
-## Pros
-* Flexible
-
-## Cons
+## Caveats
 * A full local / remote round trip is required to resolve each link
-* Pageable indexes are faked by loading all keys and only paging the values
-* Depends on a commercial project for the moment
+* Cloud Firestore driver's list size feature needs help from Cloud Functions
+
+## Changelog
+* 3.0
+  * Abstract again, Firestore driver provided
+* 2.0
+  * Tightly coupled with Firebase
+* 1.0
+  * First pass at abstract
 
 ## License
 MIT
