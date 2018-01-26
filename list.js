@@ -3,6 +3,7 @@ var HyperMap = require('./map')
 module.exports = class HyperList extends HyperMap {
   constructor (opts) {
     super(opts)
+    this.update = this.update.bind(this)
     this._page = opts.page || 0
     this._pageSize = opts.pageSize || 9999
     this._reverse = opts.reverse
@@ -70,8 +71,48 @@ module.exports = class HyperList extends HyperMap {
     this.storage.update(this)
   }
 
+  watch () {
+    var parent = this.parent
+    if (parent && parent.prefix + parent.key === this._prefix) {
+      this.embedded = true
+      delete this.data
+      parent.on('update', this.update)
+      this.update()
+    } else {
+      super.watch()
+    }
+  }
+
+  unwatch () {
+    var parent = this.parent
+    if (parent && parent.prefix + parent.key === this._prefix) {
+      delete this.embedded
+      delete this.parentData
+      parent.removeListener('update', this.update)
+    }
+    super.unwatch()
+  }
+
   update () {
-    if (this.loading) return
+    if (this.embedded) {
+      var parentData = this.parent.data
+      if (parentData === undefined) return
+      if (parentData) parentData = parentData[this.key]
+      if (parentData === this.parentData) return
+      delete this.cache
+      this.parentData = parentData
+      this.data = []
+      for (var key in parentData) {
+        this.data.push({
+          key,
+          order: parentData[key]
+        })
+      }
+      this.data.sort((a, b) => this.reverse ? b.order - a.order : a.order - b.order)
+      this.size = this.data.length
+    } else if (this.loading) {
+      return
+    }
     var items = {}
     this.data.forEach(item => {
       items[item.key] = true
@@ -83,6 +124,7 @@ module.exports = class HyperList extends HyperMap {
         child.removeListener('change', this.onchange)
         child.unwatch()
         delete child.root
+        delete child.parent
         delete this.children[key]
       } else if (child.link !== this._each.link) {
         child.link = this._each.link
@@ -95,6 +137,7 @@ module.exports = class HyperList extends HyperMap {
         child = this.children[key] = new Klass(Object.assign({
           key,
           root: this.root,
+          parent: this,
           storage: this.storage,
           debounce: 0
         }, this._each))
@@ -102,7 +145,9 @@ module.exports = class HyperList extends HyperMap {
         child.on('change', this.onchange)
       }
     }
-    this.onchange()
+    if (!this.embedded) {
+      this.onchange()
+    }
   }
 
   reorder (key, pagePosition = 0) {

@@ -13,6 +13,7 @@ module.exports = class HyperMap extends EventEmitter {
     this._prefix = opts.prefix || ''
     this.prefix = opts.prefix ? (opts.prefix + '/') : ''
     this.root = opts.root || this
+    this.parent = opts.parent
     this.storage = opts.storage
     this._links = opts.link
     this.debounce = opts.debounce === undefined ? 25 : opts.debounce
@@ -65,6 +66,7 @@ module.exports = class HyperMap extends EventEmitter {
       child.removeListener('change', this.onchange)
       child.unwatch()
       delete child.root
+      delete child.parent
     }
     this.children = {}
   }
@@ -104,6 +106,7 @@ module.exports = class HyperMap extends EventEmitter {
       child.removeListener('change', this.onchange)
       child.unwatch()
       delete child.root
+      delete child.parent
       delete this.children[childKey]
     }
     for (childKey in links) {
@@ -126,6 +129,7 @@ module.exports = class HyperMap extends EventEmitter {
         key,
         prefix,
         root: this.root,
+        parent: this,
         storage: this.storage,
         debounce: 0
       }, opts))
@@ -133,6 +137,7 @@ module.exports = class HyperMap extends EventEmitter {
       child.on('change', this.onchange)
     }
     if (changed) {
+      this.emit('update')
       this.onchange()
     }
   }

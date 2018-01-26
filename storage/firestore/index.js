@@ -40,6 +40,7 @@ module.exports = class HyperbaseStorageFirestore {
 
   unwatch (observer) {
     var meta = this.observers.get(observer)
+    if (!meta) return
     this.observers.delete(observer)
     if (observer.type === 'list') {
       if (meta.unwatchItems) {
@@ -92,6 +93,16 @@ module.exports = class HyperbaseStorageFirestore {
     if (observer.type !== 'list') {
       throw new Error('observer must be a list')
     }
+    if (observer.embedded) {
+      var embedded = {}
+      observer.data.forEach(item => embedded[item.key] = item.order)
+      embedded[key] = position
+      return {
+        [observer.parent.prefix + observer.parent.key]: {
+          [observer.key]: embedded
+        }
+      }
+    }
     return {
       [`${observer.prefix}${observer.key}/items/${key}`]: {
         i: position
@@ -100,8 +111,14 @@ module.exports = class HyperbaseStorageFirestore {
   }
 
   delete (observer) {
-    return {
-      [`${observer.prefix}${observer.key}`]: null
+    var patch = {}
+    if (observer.type === 'list') {
+      if (observer.embedded) return patch
+      observer.data.forEach(item => {
+        patch[`${observer.prefix}${observer.key}/items/${item.key}`] = null
+      })
     }
+    patch[`${observer.prefix}${observer.key}`] = null
+    return patch
   }
 }

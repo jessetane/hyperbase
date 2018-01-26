@@ -39,9 +39,26 @@ var fixture = {
     },
     b: {
       name: 'name b'
+    },
+    c: {
+      name: 'name c',
+      messages: {
+        u: 2,
+        v: 1,
+        w: 0
+      }
     }
   },
   messages: {
+    u: {
+      message: 'message u'
+    },
+    v: {
+      message: 'message v'
+    },
+    w: {
+      message: 'message w'
+    },
     x: {
       message: 'message x'
     },

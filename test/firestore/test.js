@@ -41,6 +41,30 @@ tape('read list', t => {
   t.ok(list && list.loading)
 })
 
+tape('read embedded list', t => {
+  t.plan(3)
+
+  var map = hb.read('rooms/c', {
+    link: {
+      messages: {
+        type: 'list',
+        each: {
+          prefix: 'messages'
+        }
+      }
+    }
+  }, (err, data) => {
+    t.error(err)
+    t.deepEqual(data.messages.map(m => m.message), [
+      'message w',
+      'message v',
+      'message u'
+    ])
+  })
+
+  t.ok(map && map.loading)
+})
+
 tape('join on links', t => {
   t.plan(1)
 
@@ -219,6 +243,177 @@ tape('reorder list while reversed', t => {
         'message x'
       ])
       hb.unwatch(list)
+    }
+  })
+})
+
+tape('reorder embedded list', t => {
+  t.plan(7)
+
+  var map = hb.watch('rooms/c', {
+    link: {
+      messages: {
+        type: 'list',
+        each: {
+          prefix: 'messages'
+        }
+      }
+    }
+  })
+
+  map.on('error', t.fail)
+
+  var n = 0
+  map.on('change', () => {
+    if (map.loading) return
+    var data = map.denormalize().messages
+
+    if (n === 0) {
+      n++
+      t.deepEqual(data.map(m => m.message), [
+        'message w',
+        'message v',
+        'message u'
+      ])
+      var patch = map.children.messages.reorder('w', 2)
+      t.deepEqual(patch, {
+        'rooms/c': {
+          messages: {
+            u: 2,
+            v: 1,
+            w: 3
+          }
+        }
+      })
+      hb.write(patch, err => t.error(err))
+    } else if (n === 1) {
+      n++
+      t.deepEqual(data.map(m => m.message), [
+        'message v',
+        'message u',
+        'message w'
+      ])
+      patch = map.children.messages.reorder('w', 0)
+      t.deepEqual(patch, {
+        'rooms/c': {
+          messages: {
+            u: 2,
+            v: 1,
+            w: 0
+          }
+        }
+      })
+      hb.write(patch, err => t.error(err))
+    } else {
+      t.deepEqual(data.map(m => m.message), [
+        'message w',
+        'message v',
+        'message u'
+      ])
+      hb.unwatch(map)
+    }
+  })
+})
+
+tape('delete', t => {
+  t.plan(4)
+
+  var map = hb.watch('rooms/a', {
+    link: {
+      messages: {
+        type: 'list',
+        prefix: 'indexes',
+        each: {
+          prefix: 'messages'
+        }
+      }
+    }
+  })
+
+  map.on('error', t.fail)
+
+  var n = 0
+  map.on('change', evt => {
+    if (map.loading) return
+    var data = map.denormalize()
+
+    if (n === 0) {
+      n++
+      t.deepEqual(data, {
+        name: 'name a',
+        messages: [
+          {
+            message: 'message x'
+          }, {
+            message: 'message y'
+          }
+        ]
+      })
+      var patch = map.delete()
+      t.deepEqual(patch, {
+        'indexes/messages-by-room-a/items/x': null,
+        'indexes/messages-by-room-a/items/y': null,
+        'indexes/messages-by-room-a': null,
+        'messages/x': null,
+        'messages/y': null,
+        'rooms/a': null
+      })
+      hb.write(patch, err => t.error(err))
+    } else {
+      if (evt.target.key !== 'rooms/a') return
+      t.ok(map.notFound)
+      hb.unwatch(map)
+    }
+  })
+})
+
+tape('delete embedded list', t => {
+  t.plan(4)
+
+  var map = hb.watch('rooms/c', {
+    link: {
+      messages: {
+        type: 'list',
+        each: {
+          prefix: 'messages'
+        }
+      }
+    }
+  })
+
+  map.on('error', t.fail)
+
+  var n = 0
+  map.on('change', evt => {
+    if (map.loading) return
+    var data = map.denormalize()
+
+    if (n === 0) {
+      n++
+      t.deepEqual(data, {
+        name: 'name c',
+        messages: [
+          {
+            message: 'message w'
+          }, {
+            message: 'message v'
+          }, {
+            message: 'message u'
+          }
+        ]
+      })
+      var patch = map.delete()
+      t.deepEqual(patch, {
+        'messages/u': null,
+        'messages/v': null,
+        'messages/w': null,
+        'rooms/c': null
+      })
+      hb.write(patch, err => t.error(err))
+    } else {
+      if (evt.target.key !== 'rooms/c') return
+      t.ok(map.notFound)
+      hb.unwatch(map)
     }
   })
 })
