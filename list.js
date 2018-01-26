@@ -106,6 +106,8 @@ module.exports = class HyperList extends HyperMap {
   }
 
   reorder (key, pagePosition = 0) {
+    var reverse = this.reverse
+    var direction = 'forward'
     var position = null
     var from = null
     var to = null
@@ -122,6 +124,7 @@ module.exports = class HyperList extends HyperMap {
         before = this.data[i - 1]
         after = this.data[i + 1]
         if (from) break
+        direction = 'backward'
       }
       i++
     }
@@ -132,17 +135,17 @@ module.exports = class HyperList extends HyperMap {
     } else if (!after && this.page !== Math.ceil(this.size / this.pageSize) - 1) {
       throw new Error('missing item after')
     }
-    if (to.order <= from.order) {
+    if (direction === 'backward') {
       if (before) {
-        position = to.order - (to.order - before.order) / 2
+        position = to.order - (reverse ? before.order - to.order : to.order - before.order) / 2
       } else {
-        position = to.order - 1
+        position = to.order - (reverse ? -1 : 1)
       }
     } else {
       if (after) {
-        position = to.order + (after.order - to.order) / 2
+        position = to.order + (reverse ? to.order - after.order : after.order - to.order) / 2
       } else {
-        position = to.order + 1
+        position = to.order + (reverse ? -1 : 1)
       }
     }
     return this.storage.reorder(this, key, position)

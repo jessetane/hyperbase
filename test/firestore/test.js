@@ -167,6 +167,62 @@ tape('reorder list', t => {
   })
 })
 
+tape('reorder list while reversed', t => {
+  t.plan(7)
+
+  var list = hb.watch('indexes/messages-by-room-a', {
+    type: 'list',
+    reverse: true,
+    each: {
+      prefix: 'messages'
+    }
+  })
+
+  list.on('error', t.fail)
+
+  var n = 0
+  list.on('change', () => {
+    if (list.loading) return
+    var data = list.denormalize()
+
+    if (n === 0) {
+      n++
+      t.deepEqual(data.map(m => m.message), [
+        'message y',
+        'message x'
+      ])
+      // move to index 1
+      var patch = list.reorder('x', 0)
+      t.deepEqual(patch, {
+        'indexes/messages-by-room-a/items/x': {
+          i: 2
+        }
+      })
+      hb.write(patch, err => t.error(err))
+    } else if (n === 1) {
+      n++
+      t.deepEqual(data.map(m => m.message), [
+        'message x',
+        'message y'
+      ])
+      // move back to index 0
+      patch = list.reorder('x', 1)
+      t.deepEqual(patch, {
+        'indexes/messages-by-room-a/items/x': {
+          i: 0
+        }
+      })
+      hb.write(patch, err => t.error(err))
+    } else {
+      t.deepEqual(data.map(m => m.message), [
+        'message y',
+        'message x'
+      ])
+      hb.unwatch(list)
+    }
+  })
+})
+
 tape('have no mounts', t => {
   t.plan(1)
 
