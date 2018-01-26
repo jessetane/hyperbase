@@ -332,8 +332,10 @@ $ npm run test/firestore
 * Cloud Firestore driver's list size feature needs help from Cloud Functions
 
 ## Changelog
-* 3.0
+* 4.0
   * Abstract again, Firestore driver provided
+* 3.0
+  * Added tests, cosmetic API changes
 * 2.0
   * Tightly coupled with Firebase
 * 1.0
