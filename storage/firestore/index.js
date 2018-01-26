@@ -24,7 +24,7 @@ module.exports = class HyperbaseStorageFirestore {
           observer.data = []
           observer.update()
         } else {
-          observer.size = snap.docs[0].data().size || 0
+          observer.size = snap.docs[0].data().size || snap.size
           if (meta.unwatchItems) {
             observer.update()
           } else {
