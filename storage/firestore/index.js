@@ -96,11 +96,7 @@ module.exports = class HyperbaseStorageFirestore {
         batch.set(this.db.doc(key), patch[key], { merge: true })
       }
     }
-    batch.commit().then(() => {
-      cb()
-    }).catch(err => {
-      cb(err)
-    })
+    batch.commit().then(() => cb(), cb)
   }
 
   reorder (observer, key, position) {
