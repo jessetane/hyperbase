@@ -160,7 +160,6 @@ tape('reorder list', t => {
         'message x',
         'message y'
       ])
-      // move to index 1
       var patch = list.reorder('x', 1)
       t.deepEqual(patch, {
         'indexes/messages-by-room-a/items/x': {
@@ -174,7 +173,6 @@ tape('reorder list', t => {
         'message y',
         'message x'
       ])
-      // move back to index 0
       patch = list.reorder('x', 0)
       t.deepEqual(patch, {
         'indexes/messages-by-room-a/items/x': {
@@ -216,7 +214,6 @@ tape('reorder list while reversed', t => {
         'message y',
         'message x'
       ])
-      // move to index 1
       var patch = list.reorder('x', 0)
       t.deepEqual(patch, {
         'indexes/messages-by-room-a/items/x': {
@@ -230,7 +227,6 @@ tape('reorder list while reversed', t => {
         'message x',
         'message y'
       ])
-      // move back to index 0
       patch = list.reorder('x', 1)
       t.deepEqual(patch, {
         'indexes/messages-by-room-a/items/x': {
