@@ -21,7 +21,7 @@ import HyperbaseStorageFirestore from 'hyperbase/storage/firestore'
 
 // var firebase = <get firebase handle somehow>
 
-const db = new Hyperbase({
+var db = new Hyperbase({
   storage: new HyperbaseStorageFirestore(firebase.firestore)
 })
 ```
@@ -37,7 +37,7 @@ Working with Maps:
 //   }
 // }
 
-const thing = db.watch('things/a-thing', {
+var thing = db.watch('things/a-thing', {
   type: 'map'
 })
 
@@ -74,9 +74,8 @@ Working with Lists:
 //   }
 // }
 
-const allTheThings = db.watch('lists/all-the-things', {
+var allTheThings = db.watch('lists/all-the-things', {
   type: 'list',
-  page: 0,
   pageSize: 10,
   reverse: false,
   each: {
@@ -86,27 +85,27 @@ const allTheThings = db.watch('lists/all-the-things', {
 })
 
 allTheThings.on('change', () => {
-  var { loading, page, pageSize, length } = allTheThings
+  var { loading, page, pageSize, size } = allTheThings
+  var data = allTheThings.denormalize()
 
   console.log(
     loaded,
     length,
-    allTheThings.denormalize().map(thing => thing.name)
+    data.map(thing => thing.name)
   )
-  // => false, 1000, [ 'A thing', 'Other thing', ... ]
+  // => false, null, [ 'A thing', 'Other thing', ... ]
 
-  if (!loading && (page + 1) * pageSize < length) {
+  if (!loading && data.length < pageSize) {
     // load the next page if there is one
-    allTheThings.page++
+    allTheThings.next()
   }
 })
 ```
 
 Reordering list items:
 ``` javascript
-const allTheThings = db.watch('lists/all-the-things', {
+var allTheThings = db.watch('lists/all-the-things', {
   type: 'list',
-  page: 0,
   pageSize: 10,
   each: {
     type: 'map',
@@ -137,9 +136,9 @@ allTheThings.on('change', () => {
 
 Creating data:
 ``` javascript
-const randomKey = db.create()
+var randomKey = db.create()
 
-const aNewThing = {
+var aNewThing = {
   name: 'A new thing'
 }
 
@@ -174,7 +173,7 @@ Working with links:
 //   }
 // }
 
-const thing = db.watch('things/some-thing', {
+var thing = db.watch('things/some-thing', {
   type: 'map',
   link: {
     'i18n/es': {
@@ -250,7 +249,7 @@ Nested links (and embedded Lists):
 //   }
 // }
 
-const person = db.watch('a-person', {
+var person = db.watch('a-person', {
   link: {
     friends: {
       type: 'list',
@@ -294,7 +293,7 @@ person.on('change', () => {
 
 Deleting data:
 ``` javascript
-const thing = db.watch('things/some-thing', {
+var thing = db.watch('things/some-thing', {
   link: {
     'i18n/*': {
       type: 'map'

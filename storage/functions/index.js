@@ -1,9 +1,9 @@
-const functions = require('firebase-functions')
-const admin = require('firebase-admin')
+var functions = require('firebase-functions')
+var admin = require('firebase-admin')
 
 admin.initializeApp(functions.config().firebase)
 
-const db = admin.firestore()
+var db = admin.firestore()
 
 exports.onThingCreate = functions.firestore.document('indexes/{collectionId}/items/{docId}').onCreate(evt => {
   var counter = db.doc(`indexes/${evt.params.collectionId}`)
