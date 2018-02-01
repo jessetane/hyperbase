@@ -1,5 +1,5 @@
 node_modules
 .DS_Store
-google.json
+env.json
 .firebaserc
 tmp

@@ -1,6 +1,6 @@
 var tools = require('firebase-tools')
 var firebase = require('firebase-admin')
-var google = require('../../google.json')
+var env = require('../../env.json')
 
 var fixture = {
   indexes: {
@@ -87,8 +87,8 @@ var fixture = {
 }
 
 firebase.initializeApp({
-  credential: firebase.credential.cert(google),
-  databaseURL: `https://${google.project_id}.firebaseio.com`
+  credential: firebase.credential.cert(env.google),
+  databaseURL: `https://${env.google.project_id}.firebaseio.com`
 })
 
 if (process.argv[2] === '--reset') {
@@ -98,7 +98,8 @@ if (process.argv[2] === '--reset') {
 }
 
 function deleteAll () {
-  tools.firestore.delete(google.project_id, {
+  tools.firestore.delete(env.google.project_id, {
+    token: env.google_ci_token,
     allCollections: true,
     yes: true
   }).then(() => {
