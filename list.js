@@ -180,12 +180,10 @@ module.exports = class HyperList extends HyperMap {
     }
     if (!from) {
       throw new Error('missing item')
-    } else if (this.page !== null) {
-      if (!before) {
-        throw new Error('missing item before')
-      } else if (!after) {
-        throw new Error('missing item after')
-      }
+    } else if (!before && this.page !== null) {
+      throw new Error('missing item before')
+    } else if (!after && this.data.length < this.size) {
+      throw new Error('missing item after')
     }
     if (direction === 'backward') {
       if (before) {
