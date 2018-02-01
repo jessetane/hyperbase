@@ -4,10 +4,11 @@ module.exports = class HyperList extends HyperMap {
   constructor (opts) {
     super(opts)
     this.update = this.update.bind(this)
-    this._page = opts.page || 0
+    this._page = opts.page || null
     this._pageSize = opts.pageSize || 9999
     this._reverse = opts.reverse
     this._each = opts.each || { type: 'map' }
+    this.pageDirection = 0
     this.type = 'list'
     this.size = 0
   }
@@ -28,9 +29,6 @@ module.exports = class HyperList extends HyperMap {
 
   set pageSize (pageSize) {
     if (!pageSize || pageSize === this._pageSize) return
-    if (this._page > 0) {
-      this._page = Math.round(this._pageSize * this._page / pageSize)
-    }
     this._pageSize = pageSize
     this.storage.update(this)
   }
@@ -40,15 +38,8 @@ module.exports = class HyperList extends HyperMap {
   }
 
   set page (page) {
-    if (page === this._page) return
-    if (page < 0 || this.size <= this._pageSize) {
-      page = 0
-    } else if (page > this._page) {
-      if (this.size - page * this._pageSize < this._pageSize) {
-        page = (this.size - this._pageSize) / this._pageSize
-      }
-    }
     this._page = page
+    this.pageDirection = 0
     this.storage.update(this)
   }
 
@@ -150,6 +141,20 @@ module.exports = class HyperList extends HyperMap {
     }
   }
 
+  next (f = 1) {
+    f = Math.ceil((this.pageSize - 1) * f)
+    this._page = this.data[f].order
+    this.pageDirection = 1
+    this.storage.update(this)
+  }
+
+  prev (f = 1) {
+    f = (this.pageSize - 1) - Math.ceil((this.pageSize - 1) * f)
+    this._page = this.data[f].order
+    this.pageDirection = 2
+    this.storage.update(this)
+  }
+
   reorder (key, pagePosition = 0) {
     var reverse = this.reverse
     var direction = 'forward'
@@ -175,10 +180,12 @@ module.exports = class HyperList extends HyperMap {
     }
     if (!from) {
       throw new Error('missing item')
-    } else if (!before && this.page > 0) {
-      throw new Error('missing item before')
-    } else if (!after && this.page !== Math.ceil(this.size / this.pageSize) - 1) {
-      throw new Error('missing item after')
+    } else if (this.page !== null) {
+      if (!before) {
+        throw new Error('missing item before')
+      } else if (!after) {
+        throw new Error('missing item after')
+      }
     }
     if (direction === 'backward') {
       if (before) {

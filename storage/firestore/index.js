@@ -56,10 +56,24 @@ module.exports = class HyperbaseStorageFirestore {
       if (meta.unwatchItems) {
         meta.unwatchItems()
       }
-      meta.items = this.db.collection(observer.prefix + observer.key + '/items')
+      var query = this.db.collection(observer.prefix + observer.key + '/items')
         .orderBy('i', observer.reverse ? 'desc' : 'asc')
-        .offset(observer.page * observer.pageSize)
-        .limit(observer.pageSize)
+      if (observer.page !== null) {
+        switch (observer.pageDirection) {
+          case 0:
+            query = query.startAt(observer.page)
+            break
+          case 1:
+            query = query.startAfter(observer.page)
+            break
+          case 2:
+            query = query.endBefore(observer.page)
+            break
+          default:
+            throw new Error('unknown page direction')
+        }
+      }
+      meta.items = query.limit(observer.pageSize)
       meta.unwatchItems = meta.items.onSnapshot(snap => {
         observer.data = snap.docs.map(doc => {
           return {

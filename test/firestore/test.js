@@ -34,7 +34,8 @@ tape('read list', t => {
     t.error(err)
     t.deepEqual(data.map(t => t.name), [
       'name a',
-      'name b'
+      'name b',
+      'name c'
     ])
   })
 
@@ -311,6 +312,97 @@ tape('reorder embedded list', t => {
         'message u'
       ])
       hb.unwatch(map)
+    }
+  })
+})
+
+tape('paginate', t => {
+  t.plan(4)
+
+  var list = hb.watch('indexes/rooms', {
+    type: 'list',
+    pageSize: 1,
+    each: {
+      prefix: 'rooms'
+    }
+  })
+
+  list.on('error', t.fail)
+
+  var n = 0
+  list.on('change', () => {
+    if (list.loading) return
+    var data = list.denormalize()
+
+    if (n === 0) {
+      n++
+      t.deepEqual(data.map(r => r.name), [
+        'name a',
+      ])
+      list.next()
+    } else if (n === 1) {
+      n++
+      t.deepEqual(data.map(r => r.name), [
+        'name b',
+      ])
+      list.prev()
+    } else if (n === 2) {
+      n++
+      t.deepEqual(data.map(r => r.name), [
+        'name a',
+      ])
+      list.page = 2
+    } else if (n === 3) {
+      t.deepEqual(data.map(r => r.name), [
+        'name c',
+      ])
+      hb.unwatch(list)
+    }
+  })
+})
+
+tape('paginate in reverse', t => {
+  t.plan(4)
+
+  var list = hb.watch('indexes/rooms', {
+    type: 'list',
+    pageSize: 1,
+    reverse: true,
+    each: {
+      prefix: 'rooms'
+    }
+  })
+
+  list.on('error', t.fail)
+
+  var n = 0
+  list.on('change', () => {
+    if (list.loading) return
+    var data = list.denormalize()
+
+    if (n === 0) {
+      n++
+      t.deepEqual(data.map(r => r.name), [
+        'name c',
+      ])
+      list.next()
+    } else if (n === 1) {
+      n++
+      t.deepEqual(data.map(r => r.name), [
+        'name b',
+      ])
+      list.prev()
+    } else if (n === 2) {
+      n++
+      t.deepEqual(data.map(r => r.name), [
+        'name c',
+      ])
+      list.page = 0
+    } else if (n === 3) {
+      t.deepEqual(data.map(r => r.name), [
+        'name a',
+      ])
+      hb.unwatch(list)
     }
   })
 })
