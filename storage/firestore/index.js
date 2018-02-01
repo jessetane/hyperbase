@@ -93,7 +93,7 @@ module.exports = class HyperbaseStorageFirestore {
       if (value === null) {
         batch.delete(this.db.doc(key))
       } else {
-        batch.update(this.db.doc(key), patch[key])
+        batch.set(this.db.doc(key), patch[key], { merge: true })
       }
     }
     batch.commit().then(() => {
