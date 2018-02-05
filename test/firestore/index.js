@@ -6,32 +6,28 @@ var fixture = {
   indexes: {
     rooms: {
       items: {
-        a: {
-          i: 0
-        },
-        b: {
-          i: 1
-        },
-        c: {
-          i: 2
-        }
+        a: { i: 0 },
+        b: { i: 1 },
+        c: { i: 2 }
       }
     },
     'messages-by-room-a': {
       items: {
-        x: {
-          i: 0
-        },
-        y: {
-          i: 1
-        }
+        x: { i: 0 },
+        y: { i: 1 }
       }
     },
     'messages-by-room-b': {
       items: {
-        z: {
-          i: 0
-        }
+        z: { i: 0 }
+      }
+    },
+    dynamic: {
+      size: 3,
+      items: {
+        a: { i: 0 },
+        b: { i: 1 },
+        c: { i: 2 }
       }
     }
   },
@@ -41,7 +37,8 @@ var fixture = {
       messages: 'messages-by-room-a'
     },
     b: {
-      name: 'name b'
+      name: 'name b',
+      dynamicList: 'dynamic'
     },
     c: {
       name: 'name c',
@@ -82,6 +79,17 @@ var fixture = {
     },
     f28de: {
       name: 'Alguna cosita'
+    }
+  },
+  dynamic: {
+    a: {
+      name: 'A'
+    },
+    b: {
+      name: 'B'
+    },
+    c: {
+      name: 'C'
     }
   }
 }

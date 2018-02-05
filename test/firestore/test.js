@@ -42,6 +42,31 @@ tape('read list', t => {
   t.ok(list && list.loading)
 })
 
+tape('read list with dynamic prefix', t => {
+  t.plan(3)
+
+  var map = hb.read('rooms/b', {
+    link: {
+      dynamicList: {
+        type: 'list',
+        prefix: 'indexes',
+        each: {
+          prefix: parent => parent.key
+        }
+      }
+    }
+  }, (err, data) => {
+    t.error(err)
+    t.deepEqual(data.dynamicList.map(t => t.name), [
+      'A',
+      'B',
+      'C'
+    ])
+  })
+
+  t.ok(map && map.loading)
+})
+
 tape('read embedded list', t => {
   t.plan(3)
 

@@ -108,6 +108,7 @@ module.exports = class HyperList extends HyperMap {
     this.data.forEach(item => {
       items[item.key] = true
     })
+    var each = null
     for (var key in this.children) {
       var child = this.children[key]
       if (!items[key]) {
@@ -124,14 +125,21 @@ module.exports = class HyperList extends HyperMap {
     for (key in items) {
       child = this.children[key]
       if (!child) {
-        var Klass = this._each.type === 'list' ? HyperList : HyperMap
+        if (each === null) {
+          each = this._each
+          if (typeof each.prefix === 'function') {
+            each = Object.assign({}, this._each)
+            each.prefix = each.prefix(this)
+          }
+        }
+        var Klass = each.type === 'list' ? HyperList : HyperMap
         child = this.children[key] = new Klass(Object.assign({
           key,
           root: this.root,
           parent: this,
           storage: this.storage,
           debounce: 0
-        }, this._each))
+        }, each))
         child.on('error', this.onerror)
         child.on('change', this.onchange)
       }
