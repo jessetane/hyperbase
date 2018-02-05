@@ -16,8 +16,8 @@ The concept and library itself aims to be abstract, but each storage engine requ
 ## Examples
 Setup:
 ``` javascript
-import Hyperbase from 'hyperbase'
-import HyperbaseStorageFirestore from 'hyperbase/storage/firestore'
+var Hyperbase = require('hyperbase')
+var HyperbaseStorageFirestore = require('hyperbase/storage/firestore')
 
 // var firebase = <get firebase handle somehow>
 
