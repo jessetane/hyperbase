@@ -46,11 +46,7 @@ module.exports = class Hyperbase extends EventEmitter {
     }
     function onchange () {
       if (mount.loading) return
-      if (mount.notFound) {
-        ondone(new Error('not found'))
-      } else {
-        ondone(null, mount.denormalize())
-      }
+      ondone(null, mount.denormalize())
     }
   }
 

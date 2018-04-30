@@ -15,10 +15,10 @@
     "debug": "node --inspect --inspect-brk test"
   },
   "devDependencies": {
-    "standard": "^8.6.0",
-    "tape": "^4.8.0",
     "firebase-admin": "^5.8.1",
-    "firebase-tools": "^3.17.3"
+    "firebase-tools": "^3.17.3",
+    "standard": "^8.6.0",
+    "tape": "^4.8.0"
   },
   "repository": "https://github.com/jessetane/hyperbase.git",
   "author": "jesse.tane@gmail.com",

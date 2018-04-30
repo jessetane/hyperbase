@@ -16,6 +16,7 @@ module.exports = class HyperMap extends EventEmitter {
     this.parent = opts.parent
     this.storage = opts.storage
     this._links = opts.link
+    this.embedded = opts.embedded
     this.debounce = opts.debounce === undefined ? 25 : opts.debounce
     this.children = {}
     this._autoWatch = setTimeout(() => this.watch())
@@ -35,7 +36,7 @@ module.exports = class HyperMap extends EventEmitter {
   }
 
   get notFound () {
-    return this.data === null
+    return !this.loading && this.data === null
   }
 
   get link () {
@@ -49,6 +50,10 @@ module.exports = class HyperMap extends EventEmitter {
 
   watch () {
     delete this.data
+    if (this.embedded) {
+      this.update()
+      return
+    }
     this.storage.watch(this, err => {
       err.target = this
       this.data = null
@@ -60,6 +65,8 @@ module.exports = class HyperMap extends EventEmitter {
   unwatch () {
     clearTimeout(this._autoWatch)
     this.storage.unwatch(this)
+    delete this.dataByKey
+    delete this.parentData
     for (var key in this.children) {
       var child = this.children[key]
       child.removeListener('error', this.onerror)
@@ -71,14 +78,26 @@ module.exports = class HyperMap extends EventEmitter {
     this.children = {}
   }
 
-  update () {
+  acquireData (force) {
+    if (!this.embedded) return true
+    var parentIsList = this.parent.type === 'list'
+    var parentData = parentIsList ? this.parent.dataByKey : this.parent.data
+    if (parentData === undefined) return
+    if (parentData) parentData = parentIsList ? parentData[this.key].data : parentData[this.key]
+    if (!force && parentData === this.parentData) return
+    this.data = this.parentData = parentData
+    delete this.cache
+    return true
+  }
+
+  update (force = true) {
+    if (!this.acquireData(force)) return
     if (this.loading) return
-    var data = this.data
-    var hash = JSON.stringify(data)
+    var hash = JSON.stringify(this.data)
     var changed = hash !== this.hash
     this.hash = hash
     var links = {}
-    this.forEachLink(this._links, data, (location, property, childKey, opts) => {
+    this.forEachLink(this._links, this.data, (location, property, childKey, opts) => {
       links[childKey] = [ opts, location[property] ]
     })
     for (var childKey in this.children) {
@@ -111,23 +130,41 @@ module.exports = class HyperMap extends EventEmitter {
     }
     for (childKey in links) {
       child = this.children[childKey]
-      if (child) continue
+      if (child) {
+        if (child.embedded) {
+          child.update(false)
+        }
+        continue
+      }
       changed = true
       link = links[childKey]
-      var opts = link[0]
+      var opts = Object.assign({}, link[0])
       var key = link[1]
       var prefix = this._prefix
+      var embedded = false
       var Klass = HyperMap
+      if (key === undefined) {
+        key = opts.key
+        key = opts.key = typeof key === 'function' ? key(this) : key
+      }
+      if (key === undefined) continue
+      if (typeof opts.prefix === 'function') {
+        opts.prefix = opts.prefix(this)
+      }
       if (opts.type === 'list') {
         if (typeof key === 'object') {
-          key = childKey
-          prefix = this.prefix + this.key
+          key = opts.key = childKey
+          embedded = true
+          if (opts.prefix === undefined) {
+            prefix = this.prefix + this.key
+          }
         }
         Klass = HyperList
       }
       child = this.children[childKey] = new Klass(Object.assign({
         key,
         prefix,
+        embedded,
         root: this.root,
         parent: this,
         storage: this.storage,
@@ -137,7 +174,6 @@ module.exports = class HyperMap extends EventEmitter {
       child.on('change', this.onchange)
     }
     if (changed) {
-      this.emit('update')
       this.onchange()
     }
   }
@@ -204,11 +240,12 @@ module.exports = class HyperMap extends EventEmitter {
                 }
               }
             }
-          } else if (location[component] !== undefined) {
+          } else {
             property = component
-            if (last) {
+            var hasValue = location[property] !== undefined
+            if (last && (hasValue || opts.key !== undefined)) {
               cb(location, property, relpath + property, opts)
-            } else {
+            } else if (hasValue) {
               nextPointers.push([
                 location[property],
                 relpath + property
@@ -227,12 +264,16 @@ module.exports = class HyperMap extends EventEmitter {
   denormalize (cacheBehavior = 1) {
     var data = this.cache
     if (!cacheBehavior || !data) {
-      data = this.data ? JSON.parse(this.hash) : {}
-      var key = this.key
-      Object.defineProperty(data, 'key', {
-        enumerable: false,
-        get: () => key
-      })
+      if (this.data === null) {
+        data = null
+      } else {
+        data = this.data ? JSON.parse(this.hash) : {}
+        var key = this.key
+        Object.defineProperty(data, 'key', {
+          enumerable: false,
+          get: () => key
+        })
+      }
       this.cache = data
     } else if (cacheBehavior === 1 && data) {
       return data
@@ -246,10 +287,10 @@ module.exports = class HyperMap extends EventEmitter {
     return data
   }
 
-  delete () {
+  delete (links) {
     if (this.loading) throw new Error('cannot delete items that have not loaded')
     var patch = this.storage.delete(this)
-    this.forEachLink(this._links, this.data, (location, property, childKey, opts) => {
+    this.forEachLink(links || this._links, this.data, (location, property, childKey, opts) => {
       Object.assign(
         patch,
         this.children[childKey].delete()

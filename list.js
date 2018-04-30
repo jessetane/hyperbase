@@ -3,11 +3,15 @@ var HyperMap = require('./map')
 module.exports = class HyperList extends HyperMap {
   constructor (opts) {
     super(opts)
-    this.update = this.update.bind(this)
     this._page = opts.page || null
     this._pageSize = opts.pageSize || 9999
     this._reverse = opts.reverse
     this._each = opts.each || { type: 'map' }
+    this._order = opts.order
+    this._where = opts.where
+    this.embedded = opts.embedded
+    this.counted = opts.counted
+    this.asMap = opts.asMap
     this.pageDirection = 0
     this.type = 'list'
     this.size = 0
@@ -21,6 +25,24 @@ module.exports = class HyperList extends HyperMap {
       if (this.children[key].loading) return true
     }
     return false
+  }
+
+  get where () {
+    return this._where
+  }
+
+  set where (where) {
+    this._where = where
+    this.storage.update(this)
+  }
+
+  get order () {
+    return this._order
+  }
+
+  set order (order) {
+    this._order = order
+    this.storage.update(this)
   }
 
   get pageSize () {
@@ -63,50 +85,41 @@ module.exports = class HyperList extends HyperMap {
   }
 
   watch () {
-    var parent = this.parent
-    if (parent && parent.prefix + parent.key === this._prefix) {
-      this.embedded = true
+    delete this.dataByKey
+    delete this.parentData
+    if (this.embedded) {
       delete this.data
-      parent.on('update', this.update)
       this.update()
     } else {
       super.watch()
     }
   }
 
-  unwatch () {
-    var parent = this.parent
-    if (parent && parent.prefix + parent.key === this._prefix) {
-      delete this.embedded
-      delete this.parentData
-      parent.removeListener('update', this.update)
-    }
-    super.unwatch()
-  }
-
-  update () {
+  acquireData (force) {
+    if (!super.acquireData(force)) return
     if (this.embedded) {
-      var parentData = this.parent.data
-      if (parentData === undefined) return
-      if (parentData) parentData = parentData[this.key]
-      if (parentData === this.parentData) return
-      delete this.cache
-      this.parentData = parentData
-      this.data = []
-      for (var key in parentData) {
-        this.data.push({
+      this.data = Object.keys(this.data || {}).map((key, i) => {
+        var data = this.data[key]
+        return {
           key,
-          order: parentData[key]
-        })
-      }
+          order: typeof data === 'number'
+            ? data
+            : i,
+          data
+        }
+      })
       this.data.sort((a, b) => this.reverse ? b.order - a.order : a.order - b.order)
       this.size = this.data.length
-    } else if (this.loading) {
-      return
     }
-    var items = {}
+    return true
+  }
+
+  update (force = true) {
+    if (!this.acquireData(force)) return
+    if (this.loading) return
+    var items = this.dataByKey = {}
     this.data.forEach(item => {
-      items[item.key] = true
+      items[item.key] = item
     })
     var each = null
     for (var key in this.children) {
@@ -123,30 +136,38 @@ module.exports = class HyperList extends HyperMap {
       }
     }
     for (key in items) {
+      var item = items[key]
       child = this.children[key]
-      if (!child) {
-        if (each === null) {
-          each = this._each
-          if (typeof each.prefix === 'function') {
-            each = Object.assign({}, this._each)
-            each.prefix = each.prefix(this)
-          }
+      if (child) {
+        if (child.embedded) {
+          child.update(false)
         }
-        var Klass = each.type === 'list' ? HyperList : HyperMap
-        child = this.children[key] = new Klass(Object.assign({
-          key,
-          root: this.root,
-          parent: this,
-          storage: this.storage,
-          debounce: 0
-        }, each))
-        child.on('error', this.onerror)
-        child.on('change', this.onchange)
+        continue
       }
+      if (each === null) {
+        each = this._each
+        if (typeof each.prefix === 'function') {
+          each = Object.assign({}, this._each)
+          each.prefix = each.prefix(this)
+        }
+        var prefix = this.prefix + this.key
+        if (!each.prefix || each.prefix === prefix) {
+          each.prefix = prefix
+          each.embedded = true
+        }
+      }
+      var Klass = each.type === 'list' ? HyperList : HyperMap
+      child = this.children[key] = new Klass(Object.assign({
+        key,
+        root: this.root,
+        parent: this,
+        storage: this.storage,
+        debounce: 0
+      }, each))
+      child.on('error', this.onerror)
+      child.on('change', this.onchange)
     }
-    if (!this.embedded) {
-      this.onchange()
-    }
+    this.onchange()
   }
 
   next (f = 1) {
@@ -234,14 +255,14 @@ module.exports = class HyperList extends HyperMap {
     return data
   }
 
-  delete () {
+  delete (eachLinks) {
     if (this.loading) throw new Error('cannot delete items that have not loaded')
     if (this.pageSize < this.size) throw new Error('cannot delete because page size is smaller than the amount of total items')
     var patch = this.storage.delete(this)
     this.data.map(item => {
       Object.assign(
         patch,
-        this.children[item.key].delete()
+        this.children[item.key].delete(eachLinks)
       )
     })
     return patch

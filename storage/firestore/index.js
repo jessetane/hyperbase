@@ -2,29 +2,44 @@ module.exports = class HyperbaseStorageFirestore {
   constructor (firestore) {
     this.db = firestore()
     this.docIdFieldPath = firestore.FieldPath.documentId()
+    this.deleteFieldValue = firestore.FieldValue.delete()
     this.observers = new Map()
   }
 
   watch (observer, onerror) {
-    var parts = (observer.prefix + observer.key).split('/')
+    var key = observer.prefix + observer.key
+    var parts = key.split('/')
+    var meta = {}
+    this.observers.set(observer, meta)
+    if (observer.type === 'list' && !observer.counted && !observer.asMap) {
+      this.update(observer, onerror)
+      return
+    }
     var ckey = parts.slice(0, -1).join('/')
     var dkey = parts[parts.length - 1]
     var ref = this.db.collection(ckey).orderBy(this.docIdFieldPath).startAt(dkey).endAt(dkey).limit(1)
-    var meta = { ref }
-    this.observers.set(observer, meta)
     meta.unwatch = ref.onSnapshot(snap => {
+      var doc = snap.docs[0]
       if (observer.type === 'list') {
-        if (snap.size === 0) {
-          if (meta.items) {
-            meta.unwatchItems()
-            delete meta.unwatchItems
-            delete meta.items
-          }
-          observer.size = 0
-          observer.data = []
+        if (observer.asMap) {
+          doc = doc ? doc.data() : {}
+          var orderBy = observer.order
+          observer.data = Object.keys(doc).map((itemKey, i) => {
+            var data = doc[itemKey]
+            var item = {
+              key: itemKey,
+              order: typeof data === 'number'
+                ? data
+                : orderBy
+                  ? data[orderBy]
+                  : i,
+              data
+            }
+            return item
+          })
           observer.update()
         } else {
-          observer.size = snap.docs[0].data().size || snap.size
+          observer.size = doc ? doc.data().size : snap.size
           if (meta.unwatchItems) {
             observer.update()
           } else {
@@ -32,7 +47,7 @@ module.exports = class HyperbaseStorageFirestore {
           }
         }
       } else {
-        observer.data = snap.size ? snap.docs[0].data() : null
+        observer.data = doc ? doc.data() : null
         observer.update()
       }
     }, onerror)
@@ -47,17 +62,28 @@ module.exports = class HyperbaseStorageFirestore {
         meta.unwatchItems()
       }
     }
-    meta.unwatch()
+    if (meta.unwatch) {
+      meta.unwatch()
+    }
   }
 
-  update (observer) {
+  update (observer, onerror) {
     var meta = this.observers.get(observer)
     if (observer.type === 'list') {
+      if (observer.asMap) return
       if (meta.unwatchItems) {
         meta.unwatchItems()
       }
-      var query = this.db.collection(observer.prefix + observer.key + '/items')
-        .orderBy('i', observer.reverse ? 'desc' : 'asc')
+      var key = observer.prefix + observer.key
+      if (observer.counted) {
+        key += '/items'
+      }
+      var orderBy = observer.order || this.docIdFieldPath
+      var query = this.db.collection(key).orderBy(orderBy, observer.reverse ? 'desc' : 'asc')
+      orderBy = typeof orderBy === 'string' ? orderBy : null
+      for (var key in observer.where) {
+        query = query.where(key, '==', observer.where[key])
+      }
       if (observer.page !== null) {
         switch (observer.pageDirection) {
           case 0:
@@ -73,16 +99,18 @@ module.exports = class HyperbaseStorageFirestore {
             throw new Error('unknown page direction')
         }
       }
-      meta.items = query.limit(observer.pageSize)
-      meta.unwatchItems = meta.items.onSnapshot(snap => {
-        observer.data = snap.docs.map(doc => {
-          return {
+      meta.unwatchItems = query.limit(observer.pageSize).onSnapshot(snap => {
+        observer.data = snap.docs.map((doc, i) => {
+          var data = doc.data()
+          var item = {
             key: doc.id,
-            order: doc.data().i
+            order: orderBy ? data[orderBy] : i,
+            data
           }
+          return item
         })
         observer.update()
-      })
+      }, onerror)
     }
   }
 
@@ -93,7 +121,14 @@ module.exports = class HyperbaseStorageFirestore {
       if (value === null) {
         batch.delete(this.db.doc(key))
       } else {
-        batch.set(this.db.doc(key), patch[key], { merge: true })
+        if (typeof value === 'object') {
+          for (var fieldKey in value) {
+            if (value[fieldKey] === null) {
+              value[fieldKey] = this.deleteFieldValue
+            }
+          }
+        }
+        batch.update(this.db.doc(key), value)
       }
     }
     batch.commit().then(() => cb(), cb)
@@ -105,28 +140,29 @@ module.exports = class HyperbaseStorageFirestore {
     }
     if (observer.embedded) {
       var embedded = {}
-      observer.data.forEach(item => embedded[item.key] = item.order)
-      embedded[key] = position
       return {
         [observer.parent.prefix + observer.parent.key]: {
-          [observer.key]: embedded
+          [`${observer.key}.${key}`]: position
         }
       }
     }
+    var counted = observer.counted ? `items/` : ''
     return {
-      [`${observer.prefix}${observer.key}/items/${key}`]: {
-        i: position
+      [`${observer.prefix}${observer.key}/${counted}${key}`]: {
+        [observer.order]: position
       }
     }
   }
 
   delete (observer) {
     var patch = {}
+    if (observer.embedded) return patch
     if (observer.type === 'list') {
-      if (observer.embedded) return patch
+      var counted = observer.counted ? `items/` : ''
       observer.data.forEach(item => {
-        patch[`${observer.prefix}${observer.key}/items/${item.key}`] = null
+        patch[`${observer.prefix}${observer.key}/${counted}${item.key}`] = null
       })
+      if (!counted) return patch
     }
     patch[`${observer.prefix}${observer.key}`] = null
     return patch
