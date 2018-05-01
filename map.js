@@ -92,7 +92,7 @@ module.exports = class HyperMap extends EventEmitter {
 
   update (force = true) {
     if (!this.acquireData(force)) return
-    if (this.loading) return
+    if (this.loading && !force) return
     var hash = JSON.stringify(this.data)
     var changed = hash !== this.hash
     this.hash = hash

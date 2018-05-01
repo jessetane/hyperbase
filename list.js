@@ -116,7 +116,7 @@ module.exports = class HyperList extends HyperMap {
 
   update (force = true) {
     if (!this.acquireData(force)) return
-    if (this.loading) return
+    if (this.loading && !force) return
     var items = this.dataByKey = {}
     this.data.forEach(item => {
       items[item.key] = item
