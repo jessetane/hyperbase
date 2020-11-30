@@ -1,95 +1,373 @@
-var EventEmitter = require('events')
-var HyperList = require('./list')
-var HyperMap = require('./map')
+import EventTarget from 'xevents/event-target.js'
+import CustomEvent from 'xevents/custom-event.js'
 
-module.exports = class Hyperbase extends EventEmitter {
-  constructor (opts) {
+function random () {
+  return (Math.random() + '').slice(2)
+}
+
+function P (cb) {
+  var res = null
+  var rej = null
+  var p = new Promise((a, b) => {
+    res = a
+    rej = b
+  })
+	if (typeof cb === 'function') {
+		p = p.then(() => cb(null, ...arguments)).catch(cb)
+	}
+  p.resolve = res
+  p.reject = rej
+  return p
+}
+
+class Hyperbase extends EventTarget {
+  constructor (opts = {}) {
     super()
-    this.onerror = this.onerror.bind(this)
-    this.onchange = this.onchange.bind(this)
-    this.storage = opts.storage
-    this.debounce = opts.debounce === undefined ? 25 : opts.debounce
-    this.mounts = []
+    this.name = opts.name || random()
+    this.store = opts.store
+    this.codecs = opts.codecs || {}
+    this.timeout = opts.timeout
+    this.pathDelimiter = opts.pathDelimiter || '/'
+    this.pathWildcard = opts.pathWildcard || '*'
+    this.messageLifetime = opts.messageLifetime || 1000 * 15
+    this.messages = {}
+    this.queue = []
+    this.watchers = { children: new Map() }
+    this.addEventListener('write', this.onwrite.bind(this))
   }
 
-  get loading () {
-    return !!this.mounts.find(mount => mount.loading)
+  run () {
+    if (this.running || this.queue.length === 0) return
+    this.running = true
+    var job = this.queue.shift()
+    var cb = this.queue.shift()
+    var self = this
+    var timeout = setTimeout(() => {
+      done(new Error('timed out'))
+    }, this.timeout || 1000)
+    job(done)
+    function done () {
+      if (timeout === null) return
+      clearTimeout(timeout)
+      timeout = null
+      self.running = false
+      cb.apply(null, arguments)
+      self.run()
+      // queueMicrotask(() => self.run())
+    }
   }
 
-  get loaded () {
-    return !this.loading
+  async write (batch, cb) {
+    var p = new P(cb)
+    if (!Array.isArray(batch)) {
+      p.reject(new Error('batch must be an array'))
+      return p
+    }
+    var self = this
+    var q = []
+    var dupes = {}
+    var filtered = []
+    var now = null
+    var err = null
+		batch.find((req, i) => {
+      if (req.id) {
+        if (now === null) {
+          now = +new Date()
+          for (var id in this.messages) {
+            var then = this.messages[id]
+            if (now - then > this.messageLifetime) {
+              delete this.messages[id]
+            }
+          }
+        }
+        if (this.messages[req.id]) {
+          return
+        } else {
+          this.messages[req.id] = now
+        }
+      }
+      filtered.push(req)
+      var path = this.normalizePath(req.path)
+      if (!path || path.length === 0) {
+        err = new Error('invalid path')
+				return true
+      }
+      req.path = path
+      var codecName = path[path.length - (req.id ? 2 : 1)]
+      var codec = this.codecs[codecName]
+      if (!codec) {
+        err = new Error('unknown codec ' + codecName)
+				return true
+      }
+      q.push(cb => {
+        if (req.id) {
+          this.store.read(req.path, (err, res) => {
+            if (err) return cb(err)
+            if (res.data !== undefined) {
+              req.existingData = res.data
+            }
+            codec.write(req, cb)
+          })
+        } else {
+          codec.write(req, err => {
+            if (err) return cb(err)
+            req.id = random()
+            if (now === null) now = +new Date()
+            this.messages[req.id] = now
+            cb(null, req)
+          })
+        }
+      })
+    })
+    if (err) {
+      p.reject(err)
+      return p
+    }
+    batch = filtered
+    if (batch.length === 0) {
+      p.resolve(batch)
+      return p
+    }
+    this.queue.push(cb => {
+      var n = q.length
+      q.forEach(job => {
+        job((err, req) => {
+          if (!cb) return
+          if (err) {
+            cb(err)
+            cb = null
+          } else {
+            var hash = JSON.stringify(req.path)
+            if (dupes[hash]) {
+              cb(new Error(`${hash} path can only be written once per batch`))
+              cb = null
+              return
+            } else {
+              dupes[hash] = true
+            }
+            if (--n === 0) {
+              cb()
+              cb = null
+            }
+          }
+        })
+      })
+    }, err => {
+      if (err) {
+        p.reject(err)
+        return
+      }
+      this.queue.unshift(cb => this.store.write(batch, cb), done)
+    })
+    this.run()
+    function done (err) {
+      if (err) {
+        p.reject(err)
+      } else {
+        p.resolve(batch)
+        queueMicrotask(() => {
+          self.dispatchEvent(new CustomEvent('write', { detail: batch }))
+        })
+      }
+    }
+    return p
   }
 
-  mount (key, opts) {
-    var Klass = opts.type === 'list' ? HyperList : HyperMap
-    return new Klass(Object.assign({
-      key,
-      storage: this.storage,
-      debounce: 0
-    }, opts))
-  }
-
-  read (key, opts, cb) {
-    if (!cb) {
+  async read (path, opts, cb) {
+    if (typeof opts === 'function') {
       cb = opts
       opts = {}
     }
-    var mount = this.mount(key, opts)
-    mount.on('error', ondone)
-    mount.on('change', onchange)
-    return mount
-    function ondone (err, data) {
-      mount.removeListener('error', ondone)
-      mount.removeListener('change', onchange)
-      mount.unwatch()
-      cb(err, data)
+    var p = new P(cb)
+		if (!opts || typeof opts !== 'object') {
+      p.reject(new Error('invalid options'))
+      return p
     }
-    function onchange () {
-      if (mount.loading) return
-      if (mount.notFound) {
-        ondone(new Error('not found'))
-      } else {
-        ondone(null, mount.denormalize())
+    path = this.normalizePath(path)
+    if (!path || path.length === 0) {
+      p.reject(new Error('invalid path'))
+      return p
+    }
+    this.store.read(path, (err, res) => {
+      if (err) {
+        p.reject(err)
+        return
       }
+      if (res.data === undefined || !opts.decode) {
+        p.resolve(res)
+      } else {
+        var codecName = path[path.length - 2]
+        var codec = this.codecs[codecName]
+        if (!codec) {
+          p.reject(new Error('unknown codec ' + codecName))
+          return
+        }
+        for (var key in opts) {
+          res[key] = opts[key]
+        }
+        codec.read(res, err => {
+          if (err) r.reject(err)
+          else r.resolve(res)
+        })
+      }
+    })
+    return p
+  }
+
+  stream (path = [], opts = {}) {
+    if (!opts || typeof opts !== 'object') {
+      throw new Error('invalid options')
     }
-  }
-
-  watch (key, opts = {}) {
-    var mount = this.mount(key, opts)
-    mount.on('error', this.onerror)
-    mount.on('change', this.onchange)
-    this.mounts.push(mount)
-    return mount
-  }
-
-  unwatch (mount) {
-    mount.removeListener('error', this.onerror)
-    mount.removeListener('change', this.onchange)
-    mount.unwatch()
-    this.mounts = this.mounts.filter(m => m !== mount)
-  }
-
-  write (patch, cb) {
-    return this.storage.write(patch, cb)
-  }
-
-  create (n = 8) {
-    var key = ''
-    while (n--) {
-      key += (Math.floor(Math.random() * 256)).toString(36)
+    path = this.normalizePath(path, true)
+    if (!path || path.length === 0) {
+      throw new Error('invalid path')
     }
-    return key
+    var stream = new EventTarget()
+    this.store.stream(path, opts, res => {
+      if (res === undefined) {
+        stream.dispatchEvent(new CustomEvent('end'))
+        return
+      }
+      if (opts.decode) {
+        stream.dispatchEvent(new CustomEvent('data', { detail: res }))
+      } else {
+        var codecName = res.path[res.path.length - 2]
+        var codec = this.codecs[codecName]
+        if (!codec) {
+          stream.dispatchEvent(new CustomEvent('error', { detail: new Error('unknown codec ' + codecName) }))
+          return
+        }
+        for (var key in opts.readOpts) {
+          res[key] = opts.readOpts[key]
+        }
+        codec.read(res, err => {
+          if (err) {
+            stream.dispatchEvent(new CustomEvent('error', { detail: err }))
+          } else {
+            stream.dispatchEvent(new CustomEvent('data', { detail: res }))
+          }
+        })
+      }
+    })
+    return stream
   }
 
-  denormalize () {
-    return this.mounts.map(mount => mount.denormalize())
+  watch (paths, listener, fn) {
+    if (!Array.isArray(paths)) paths = [paths]
+    paths = paths.map(path => {
+      path = this.normalizePath(path, true)
+      if (!path) throw new Error('invalid path')
+      return path
+    })
+    paths.forEach(path => {
+      var len = path.length
+      var i = 0
+      var head = this.watchers
+      while (i < len) {
+        var p = path[i++]
+        var watcher = head.children.get(p)
+        if (!watcher) {
+          watcher = {
+            children: new Map(),
+            listeners: new Map() 
+          }
+          head.children.set(p, watcher)
+        }
+        head = watcher
+      }
+      watcher.listeners.set(listener, fn)
+    })
   }
 
-  onerror (err) {
-    this.emit('error', err)
+  unwatch (paths, listener) {
+    if (!Array.isArray(paths)) paths = [paths]
+    paths = paths.map(path => {
+      path = this.normalizePath(path, true)
+      if (!path) throw new Error('invalid path')
+      return path
+    })
+    paths.forEach(path => {
+      var len = path.length
+      var i = 0
+      var head = this.watchers
+      var watchers = []
+      while (i < len) {
+        var p = path[i++]
+        var watcher = head.children.get(p)
+        if (!watcher) return
+        watchers.push(watcher)
+        head = watcher
+      }
+      watcher.listeners.delete(listener)
+      var i = len - 1
+      while (i > 0) {
+        p = path[i]
+        watcher = watchers[i]
+        if (watcher.listeners.size > 0) return
+        head = watchers[i - 1]
+        head.children.delete(p)
+        i--
+      }
+    })
   }
 
-  onchange (evt) {
-    HyperMap.prototype.onchange.call(this, evt)
+  onwrite (evt) {
+    var batch = evt.detail
+    batch.forEach(req => {
+      var heads = [this.watchers]
+      var path = req.path
+      var len = path.length
+      var i = 0
+      while (i < len) {
+        var p = path[i]
+        var newHeads = []
+        heads.forEach(head => {
+          var children = head.children
+          if (!children) return
+          var exact = children.get(p)
+          if (exact) newHeads.push(exact)
+          var wild = children.get(null)
+          if (wild) newHeads.push(wild)
+        })
+        if (!newHeads.length) return
+        heads = newHeads
+        i++
+      }
+      heads.forEach(watcher => {
+        watcher.listeners.forEach((fn, listener) => {
+          if (req.source === listener.name) continue
+          req = Object.assign({}, req, { source: this.name })
+          fn(req)
+        }
+      })
+    })
+  }
+
+  normalizePath (path, allowWild) {
+    if (typeof path === 'string') {
+      var parts = path
+        .split(this.pathDelimiter)
+        .map(part => part === this.pathWildcard ? null : part)
+    } else {
+      parts = path.slice()
+    }
+    var i = 0
+    var wild = false
+    while (i < parts.length) {
+      var part = parts[i]
+      if (part === null) {
+        if (allowWild) {
+          wild = true
+        } else {
+          return
+        }
+      } else if (wild) {
+        return
+      }
+      i++
+    }
+    return parts
   }
 }
+
+export default Hyperbase

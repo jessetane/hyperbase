@@ -1,26 +1,32 @@
 {
   "name": "hyperbase",
-  "version": "5.1.0",
-  "description": "A general purpose storage interface",
-  "keywords": [
-    "hyperbase",
-    "general purpose",
-    "realtime",
-    "storage",
-    "database"
-  ],
-  "scripts": {
-    "lint": "standard",
-    "test": "node test",
-    "debug": "node --inspect --inspect-brk test"
+  "version": "6.0.0",
+  "type": "module",
+  "exports": {
+    ".": "./index.js",
+    "./*": "./*"
+  },
+  "dependencies": {
+    "base64-transcoder": "^1.1.0",
+    "rpc-engine": "^8.1.1",
+    "tweetnacl": "github:jessetane/tweetnacl-js#esm",
+    "utf8-transcoder": "^2.1.0",
+    "xevents": "^1.0.4"
+  },
+  "optionalDependencies": {
+    "level": "^6.0.1",
+    "terminal-stream": "^2.0.1",
+    "ws": "^7.4.0"
   },
   "devDependencies": {
-    "standard": "^8.6.0",
-    "tape": "^4.8.0",
-    "firebase-admin": "^5.8.1",
-    "firebase-tools": "^3.17.3"
+    "ecstatic": "^4.1.4",
+    "es-module-shims": "^0.7.1"
   },
-  "repository": "https://github.com/jessetane/hyperbase.git",
-  "author": "jesse.tane@gmail.com",
+  "bin": {
+    "hyperbase": "./client.js"
+  },
+  "scripts": {
+    "example": "ecstatic --cache no-cache --port 8080 example"
+  },
   "license": "MIT"
 }
