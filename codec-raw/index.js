@@ -1,6 +1,5 @@
 class HyperbaseCodecRaw {
   write (req, cb) {
-    var data = req.data
     if (!req.id) {
       req.path.push('_')
     }
