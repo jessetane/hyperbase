@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 
 import HyperbaseTransportUnix from 'hyperbase/transport-unix/index.js'
-import nacl from 'tweetnacl'
-import base64 from 'base64-transcoder'
+import nacl from 'tweetnacl/nacl.js'
+import base64 from 'base64-transcoder/index.js'
 
 // args
 var args = process.argv.slice(2)

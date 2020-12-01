@@ -1,4 +1,4 @@
-import nacl from 'tweetnacl/index.js'
+import nacl from 'tweetnacl/nacl.js'
 import base64 from 'base64-transcoder/index.js'
 
 const sigSize = nacl.sign.signatureLength // 64
