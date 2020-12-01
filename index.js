@@ -337,10 +337,10 @@ class Hyperbase extends EventTarget {
       }
       heads.forEach(watcher => {
         watcher.listeners.forEach((fn, listener) => {
-          if (req.source === listener.name) continue
+          if (req.source === listener.name) return
           req = Object.assign({}, req, { source: this.name })
           fn(req)
-        }
+        })
       })
     })
   }
