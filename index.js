@@ -26,7 +26,7 @@ class Hyperbase extends EventTarget {
     this.name = opts.name || random()
     this.store = opts.store
     this.codecs = opts.codecs || {}
-    this.timeout = opts.timeout
+    this.timeout = opts.timeout || 1000
     this.pathDelimiter = opts.pathDelimiter || '/'
     this.pathWildcard = opts.pathWildcard || '*'
     this.messageLifetime = opts.messageLifetime || 1000 * 15
@@ -44,7 +44,7 @@ class Hyperbase extends EventTarget {
     var self = this
     var timeout = setTimeout(() => {
       done(new Error('timed out'))
-    }, this.timeout || 1000)
+    }, this.timeout)
     job(done)
     function done () {
       if (timeout === null) return
