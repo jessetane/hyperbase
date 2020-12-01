@@ -25,6 +25,7 @@ class HyperbaseNode extends EventTarget {
 
   accept (evt) {
     var peer = evt.detail
+    peer.addEventListener('ready', peer.auth)
     this.dispatchEvent(new CustomEvent('accept', { detail: peer }))
     this.setupPeer(peer)
   }
@@ -41,7 +42,6 @@ class HyperbaseNode extends EventTarget {
       var protocol = parts[0]
       var transport = this.transports[protocol]
       var peer = transport.connect(...parts.slice(1))
-      peer.addEventListener('ready', peer.auth)
       this.setupPeer(peer)
       this.dispatchEvent(new CustomEvent('connect', { detail: peer }))
     })
