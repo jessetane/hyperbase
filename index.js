@@ -177,9 +177,11 @@ class Hyperbase extends EventTarget {
     if (typeof opts === 'function') {
       cb = opts
       opts = {}
+    } else if (opts === undefined) {
+      opts = {}
     }
     var p = new P(cb)
-		if (!opts || typeof opts !== 'object') {
+    if (!opts || typeof opts !== 'object') {
       p.reject(new Error('invalid options'))
       return p
     }
