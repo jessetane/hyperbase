@@ -84,12 +84,13 @@ class HyperbaseStoreMemory {
     else if (lte) end += lte
     else end += this.delim
     var limit = opts.limit || Infinity
-    setTimeout(() => {
+    queueMicrotask(() => {
       var started = false
-      var length = this.sorted.length
+      var sorted = opts.reverse ? this.sorted.slice().reverse() : this.sorted
+      var length = sorted.length
       var i = 0
       while (i < length) {
-        var strPath = this.sorted[i++]
+        var strPath = sorted[i++]
         var comp = null
         if (!started) {
           comp = strcmp(strPath, start)

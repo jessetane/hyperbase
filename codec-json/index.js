@@ -3,7 +3,6 @@ import utf8 from 'utf8-transcoder/index.js'
 class HyperbaseCodecJson {
   write (req, cb) {
     if (!req.id) {
-      req.path.push('_')
       if (req.data !== null) {
         req.data = this.serialize(req.data)
       }

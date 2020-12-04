@@ -32,6 +32,7 @@ class HyperbaseTransportTcp extends EventTarget {
   accept (socket) {
     var peer = this.setupPeer(socket)
     this.dispatchEvent(new CustomEvent('accept', { detail: peer }))
+    peer.dispatchEvent(new Event('ready'))
   }
 
   connect (host, port) {

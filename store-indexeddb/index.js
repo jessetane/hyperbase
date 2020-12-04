@@ -135,7 +135,7 @@ class HyperbaseStoreIndexedDb {
       // error handling?
       tx.oncomplete = evt => emit()
       var store = tx.objectStore('default')
-      var req = store.openCursor(query)
+      var req = store.openCursor(query, opts.reverse ? 'prev' : 'next')
       req.onsuccess = evt => {
         var cursor = req.result
         if (!cursor) return

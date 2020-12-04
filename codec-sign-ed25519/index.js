@@ -27,7 +27,7 @@ class HyperbaseCodecSignEd25519 {
     var data = r.data
     var hash = nacl.hash(data.subarray(sigSize))
     var sigBuffer = data.subarray(0, sigSize)
-    var publicKey = base64.decode(r.path[r.path.length - 1], 'url')
+    var publicKey = base64.decode(r.path[r.path.length - 1].split('.')[1], 'url')
     return nacl.sign.detached.verify(hash, sigBuffer, publicKey)
   }
 
@@ -65,7 +65,7 @@ class HyperbaseCodecSignEd25519 {
       var sigBuffer = nacl.sign.detached(hash, this.identity.secretKey)
       req.data.set(sigBuffer, 0)
       req.data.set(data, sigSize + timeSize)
-      req.path.push(this.publicKey)
+      req.path[req.path.length - 1] += '.' + this.publicKey
     }
     cb(null, req)
   }

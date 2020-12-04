@@ -20,6 +20,13 @@ function P (cb) {
   return p
 }
 
+function unicodeShift (string, shift) {
+  var unicode = Array.from(string)
+  var last = unicode.length - 1
+  unicode[last] = String.fromCodePoint(unicode[last].codePointAt(0) + shift)
+  return unicode.join('')
+}
+
 class Hyperbase extends EventTarget {
   constructor (opts = {}) {
     super()
@@ -93,7 +100,7 @@ class Hyperbase extends EventTarget {
 				return true
       }
       req.path = path
-      var codecName = path[path.length - (req.id ? 2 : 1)]
+      var codecName = path[path.length - 1].split('.')[0]
       var codec = this.codecs[codecName]
       if (!codec) {
         err = new Error('unknown codec ' + codecName)
@@ -182,7 +189,7 @@ class Hyperbase extends EventTarget {
     }
     var p = new P(cb)
     if (!opts || typeof opts !== 'object') {
-      p.reject(new Error('invalid options'))
+      p.reject(new Error('read: invalid options'))
       return p
     }
     path = this.normalizePath(path)
@@ -198,7 +205,7 @@ class Hyperbase extends EventTarget {
       if (res.data === undefined || !opts.decode) {
         p.resolve(res)
       } else {
-        var codecName = path[path.length - 2]
+        var codecName = path[path.length - 1].split('.')[0]
         var codec = this.codecs[codecName]
         if (!codec) {
           p.reject(new Error('unknown codec ' + codecName))
@@ -218,11 +225,16 @@ class Hyperbase extends EventTarget {
 
   stream (path = [], opts = {}) {
     if (!opts || typeof opts !== 'object') {
-      throw new Error('invalid options')
+      throw new Error('stream: invalid options ' + JSON.stringify(opts))
     }
     path = this.normalizePath(path, true)
+    // console.log('valid?', path, opts)
     if (!path || path.length === 0) {
       throw new Error('invalid path')
+    }
+    if (path[path.length - 2] === null) {
+      if (opts.gt) opts.gt = unicodeShift(opts.gt, 1)
+      if (opts.lte) opts.lte = unicodeShift(opts.lte, 1)
     }
     var stream = new EventTarget()
     this.store.stream(path, opts, res => {
@@ -230,10 +242,10 @@ class Hyperbase extends EventTarget {
         stream.dispatchEvent(new CustomEvent('end'))
         return
       }
-      if (opts.decode) {
+      if (!opts.decode) {
         stream.dispatchEvent(new CustomEvent('data', { detail: res }))
       } else {
-        var codecName = res.path[res.path.length - 2]
+        var codecName = res.path[res.path.length - 1].split('.')[0]
         var codec = this.codecs[codecName]
         if (!codec) {
           stream.dispatchEvent(new CustomEvent('error', { detail: new Error('unknown codec ' + codecName) }))
@@ -347,16 +359,13 @@ class Hyperbase extends EventTarget {
 
   normalizePath (path, allowWild) {
     if (typeof path === 'string') {
-      var parts = path
-        .split(this.pathDelimiter)
-        .map(part => part === this.pathWildcard ? null : part)
-    } else {
-      parts = path.slice()
+      path = path.split(this.pathDelimiter)
     }
+    path = path.map(part => part === this.pathWildcard ? null : part)
     var i = 0
     var wild = false
-    while (i < parts.length) {
-      var part = parts[i]
+    while (i < path.length) {
+      var part = path[i]
       if (part === null) {
         if (allowWild) {
           wild = true
@@ -368,7 +377,7 @@ class Hyperbase extends EventTarget {
       }
       i++
     }
-    return parts
+    return path
   }
 }
 
