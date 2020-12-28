@@ -52,6 +52,7 @@ class HyperbasePeer extends Rpc {
         unwatch: this.unwatch
       })
       if (cb) cb(null, this.database.name)
+      this.dispatchEvent(new Event('open'))
     } else {
       this.setInterface({ auth: this._auth })
       if (this.authState instanceof Error === false) {
