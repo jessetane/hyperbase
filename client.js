@@ -36,7 +36,7 @@ function Client (opts) {
       var timeout = setTimeout(() => {
         this.setInterface(id, null)
         s.dispatchEvent(new CustomEvent('error', { detail: new Error('timed out') }))
-      }, this.timeout || 1000)
+      }, opts.timeout || this.timeout || 1000)
       this.setInterface(id, {
         data: entry => {
           s.dispatchEvent(new CustomEvent('data', { detail: entry }))
