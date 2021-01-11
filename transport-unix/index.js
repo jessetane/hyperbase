@@ -34,7 +34,7 @@ class HyperbaseTransportUnix extends EventTarget {
   accept (socket) {
     var peer = this.setupPeer(socket)
     this.dispatchEvent(new CustomEvent('accept', { detail: peer }))
-    peer.dispatchEvent(new Event('ready'))
+    peer.dispatchEvent(new Event('connect'))
   }
 
   connect (file = '/tmp/hyperbase.sock') {
@@ -42,7 +42,7 @@ class HyperbaseTransportUnix extends EventTarget {
     var peer = this.setupPeer(socket)
     peer.address = 'unix|' + file
     socket.on('connect', () => {
-      peer.dispatchEvent(new Event('ready'))
+      peer.dispatchEvent(new Event('connect'))
     })
     return peer
   }

@@ -11,8 +11,8 @@ class HyperbaseTransportTcp extends EventTarget {
   constructor (opts = {}) {
     super()
     this.accept = this.accept.bind(this)
-    this.host = opts.host || '::1'
-    this.port = opts.port || '3000'
+    this.host = opts.host || '::'
+    this.port = opts.port || '8453'
   }
 
   listen () {
@@ -32,7 +32,7 @@ class HyperbaseTransportTcp extends EventTarget {
   accept (socket) {
     var peer = this.setupPeer(socket)
     this.dispatchEvent(new CustomEvent('accept', { detail: peer }))
-    peer.dispatchEvent(new Event('ready'))
+    peer.dispatchEvent(new Event('connect'))
   }
 
   connect (host, port) {
@@ -40,7 +40,7 @@ class HyperbaseTransportTcp extends EventTarget {
     var peer = this.setupPeer(socket)
     peer.address = 'tcp|' + host + '|' + port
     socket.on('connect', () => {
-      peer.dispatchEvent(new Event('ready'))
+      peer.dispatchEvent(new Event('connect'))
     })
     return peer
   }

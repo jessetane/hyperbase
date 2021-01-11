@@ -30,7 +30,7 @@ class HyperbaseTransportWs extends EventTarget {
   accept (socket) {
     var peer = this.setupPeer(socket)
     this.dispatchEvent(new CustomEvent('accept', { detail: peer }))
-    peer.dispatchEvent(new Event('ready'))
+    peer.dispatchEvent(new Event('connect'))
   }
 
   connect (url) {
@@ -39,7 +39,7 @@ class HyperbaseTransportWs extends EventTarget {
 		socket.remoteUrl = url
     var peer = this.setupPeer(socket)
     socket.on('open', () => {
-      peer.dispatchEvent(new Event('ready'))
+      peer.dispatchEvent(new Event('connect'))
     })
     return peer
   }
