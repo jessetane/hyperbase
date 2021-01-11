@@ -12,9 +12,9 @@ function P (cb) {
     res = a
     rej = b
   })
-	if (typeof cb === 'function') {
-		p = p.then(() => cb(null, ...arguments)).catch(cb)
-	}
+  if (typeof cb === 'function') {
+    p = p.then(function () { cb(null, ...arguments) }).catch(cb)
+  }
   p.resolve = res
   p.reject = rej
   return p
