@@ -64,7 +64,7 @@ class Hyperbase extends EventTarget {
     }
   }
 
-  async write (batch, cb) {
+  write (batch, cb) {
     var p = new P(cb)
     if (!Array.isArray(batch)) {
       p.reject(new Error('batch must be an array'))
@@ -180,7 +180,7 @@ class Hyperbase extends EventTarget {
     return p
   }
 
-  async read (path, opts, cb) {
+  read (path, opts, cb) {
     if (typeof opts === 'function') {
       cb = opts
       opts = {}
