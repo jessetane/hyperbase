@@ -9,7 +9,7 @@
   "dependencies": {
     "base64-transcoder": "^1.1.0",
     "minimist": "^1.2.5",
-    "rpc-engine": "^8.1.1",
+    "rpc-engine": "^8.1.2",
     "tweetnacl": "github:jessetane/tweetnacl-js#esm",
     "utf8-transcoder": "^2.1.0",
     "xevents": "^1.0.4"
