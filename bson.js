@@ -4,7 +4,9 @@ function encode (obj) {
   if (obj instanceof Uint8Array) return { _bson_: base64.encode(obj) }
   if (Array.isArray(obj)) return obj.map(o => encode(o))
   if (obj && typeof obj === 'object') {
-    for (var key in obj) obj[key] = encode(obj[key])
+    var tmp = {}
+    for (var key in obj) tmp[key] = encode(obj[key])
+    obj = tmp
   }
   return obj
 }
@@ -13,7 +15,9 @@ function decode (obj) {
   if (obj && obj._bson_) return base64.decode(obj._bson_)
   if (Array.isArray(obj)) return obj.map(o => decode(o))
   if (obj && typeof obj === 'object') {
-    for (var key in obj) obj[key] = decode(obj[key])
+    var tmp = {}
+    for (var key in obj) tmp[key] = decode(obj[key])
+    obj = tmp
   }
   return obj
 }
