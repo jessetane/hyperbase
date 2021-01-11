@@ -207,6 +207,10 @@ class Hyperbase extends EventTarget {
         return
       }
       if (res.data === undefined || !opts.decode) {
+        if (!opts.decode) {
+          res.id = random()
+          res.source = this.name
+        }
         p.resolve(res)
       } else {
         var codecName = path[path.length - 1].split('.')[0]
@@ -219,8 +223,12 @@ class Hyperbase extends EventTarget {
           res[key] = opts[key]
         }
         codec.read(res, err => {
-          if (err) r.reject(err)
-          else r.resolve(res)
+          if (err) {
+            p.reject(err)
+          } else {
+            delete res.decode
+            p.resolve(res)
+          }
         })
       }
     })
@@ -246,6 +254,8 @@ class Hyperbase extends EventTarget {
         return
       }
       if (!opts.decode) {
+        res.id = random()
+        res.source = this.name
         stream.dispatchEvent(new CustomEvent('data', { detail: res }))
       } else {
         var codecName = res.path[res.path.length - 1].split('.')[0]
