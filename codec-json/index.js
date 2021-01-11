@@ -4,7 +4,7 @@ class HyperbaseCodecJson {
   write (req, cb) {
     if (!req.id) {
       if (req.data !== null) {
-        req.data = this.serialize(req.data)
+        this.serialize(req)
       }
     }
     cb(null, req)
@@ -12,17 +12,17 @@ class HyperbaseCodecJson {
 
   read (res, cb) {
     if (res.data) {
-      res.data = this.deserialize(res.data)
+      this.deserialize(res)
     }
     cb(null, res)
   }
 
-  serialize (data) {
-    return utf8.encode(JSON.stringify(data))
+  serialize (req) {
+    req.data = Uint8Array.from(utf8.encode(JSON.stringify(req.data)))
   }
 
-  deserialize (data) {
-    return JSON.parse(utf8.decode(data))
+  deserialize (res) {
+    res.data = JSON.parse(utf8.decode(res.data))
   }
 }
 

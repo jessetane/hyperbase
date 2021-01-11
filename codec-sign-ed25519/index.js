@@ -6,7 +6,8 @@ const timeSize = 8
 
 /*
  * data layout
-hash = hash([time, data])
+ *
+hash = hash([time, raw])
 data = [sig(hash), time, data]
 */
 
@@ -21,12 +22,11 @@ class HyperbaseCodecSignEd25519 {
       this._publicKey = base64.encode(this.identity.publicKey, 'url')
     }
     return this._publicKey
-  } 
-  
+  }
+
   _verify (r) {
-    var data = r.data
-    var hash = nacl.hash(data.subarray(sigSize))
-    var sigBuffer = data.subarray(0, sigSize)
+    var hash = nacl.hash(r.data.subarray(sigSize))
+    var sigBuffer = r.data.subarray(0, sigSize)
     var publicKey = base64.decode(r.path[r.path.length - 1].split('.')[1], 'url')
     return nacl.sign.detached.verify(hash, sigBuffer, publicKey)
   }
@@ -52,9 +52,16 @@ class HyperbaseCodecSignEd25519 {
     } else {
       if (!this.identity) {
         return cb(new Error(`${this.constructor.name}: missing identity`))
+      } else if (req.path[req.path.length - 1].split('.').length > 1) {
+        return cb(new Error(`${this.constructor.name}: codec name already contains identity`))
       }
       if (data === null) data = new Uint8Array()
-      req.data = data = this.serialize(req.data)
+      try {
+        this.serialize(req)
+      } catch (err) {
+        return cb(err)
+      }
+      data = req.data
       var time = Date.now()
       var hashBuffer = new Uint8Array(timeSize + data.length)
       new DataView(hashBuffer.buffer).setFloat64(0, time, true)
@@ -71,22 +78,25 @@ class HyperbaseCodecSignEd25519 {
   }
 
   read (res, cb) {
-    var shouldVerify = res.verifyExisting !== undefined ? res.verifyExisting : this.verifyExisting !== false
+    if (res.data === null) return cb(null, res)
+    var shouldVerify = true
+    if (res.verifyExisting !== undefined) shouldVerify = res.verifyExisting
+    else if (this.verifyExisting !== undefined) shouldVerify = this.verifyExisting
     if (shouldVerify && !this._verify(res)) {
       return cb(new Error(`${this.constructor.name}: bad signature for ${res.path.join('/')}`))
     }
     res.time = new DataView(res.data.buffer).getFloat64(sigSize, true)
-    res.data = this.deserialize(res.data.subarray(sigSize + timeSize))
-    cb(null, res)
+    res.data = res.data.subarray(sigSize + timeSize)
+    try {
+      this.deserialize(res)
+      cb(null, res)
+    } catch (err) {
+      cb(err)
+    }
   }
 
-  serialize (data) {
-    return data
-  }
-
-  deserialize (data) {
-    return data
-  }
+  serialize (req) {}
+  deserialize (res) {}
 }
 
 export default HyperbaseCodecSignEd25519
