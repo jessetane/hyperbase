@@ -24,7 +24,7 @@
     "es-module-shims": "^0.7.1"
   },
   "bin": {
-    "hyperbase": "./cli.js"
+    "hyperbase": "cli.js"
   },
   "scripts": {
     "example": "ecstatic --cache no-cache --port 8080 example"
