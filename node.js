@@ -41,9 +41,11 @@ class HyperbaseNode extends EventTarget {
       var protocol = parts[0]
       var transport = this.transports[protocol]
       var peer = transport.connect(...parts.slice(1))
-      peer.addEventListener('ready', peer.auth)
+      peer.addEventListener('connect', () => {
+        this.dispatchEvent(new CustomEvent('connect', { detail: peer }))
+        peer.auth()
+      })
       this.setupPeer(peer)
-      this.dispatchEvent(new CustomEvent('connect', { detail: peer }))
     })
     if (this.connectInterval) {
       var fuzzyInterval = Math.floor(this.connectInterval + this.connectInterval * Math.random())
@@ -52,11 +54,10 @@ class HyperbaseNode extends EventTarget {
   }
 
   setupPeer (peer) {
-    var isNew = true
     var oldName = peer.name
     this.peers[oldName] = peer
     peer.database = this.database
-    peer.addEventListener('auth', () => {
+    peer.addEventListener('shouldauth', () => {
       if (peer.authState === true) {
         if (peer.name !== oldName) {
           var existing = this.peers[peer.name]
@@ -71,14 +72,13 @@ class HyperbaseNode extends EventTarget {
             this.peers[oldName] = peer
           }
         }
-        if (isNew) {
-          isNew = false
-          this.dispatchEvent(new CustomEvent('auth', { detail: peer }))
-        }
       } else {
         queueMicrotask(() => peer.close())
       }
     })
+    peer.addEventListener('auth', () => {
+      this.dispatchEvent(new CustomEvent('auth', { detail: peer }))
+    }, { once: true })
     peer.addEventListener('error', evt => {
       var err = evt.detail
       if (err.code === 1) {
