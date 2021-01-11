@@ -76,7 +76,11 @@ class Hyperbase extends EventTarget {
     var filtered = []
     var now = null
     var err = null
-		batch.find((req, i) => {
+    batch.find(req => {
+      if (req.data === undefined) {
+        err = new Error('invalid data')
+        return true
+      }
       if (req.id) {
         if (now === null) {
           now = +new Date()
@@ -97,14 +101,14 @@ class Hyperbase extends EventTarget {
       var path = this.normalizePath(req.path)
       if (!path || path.length === 0) {
         err = new Error('invalid path')
-				return true
+        return true
       }
       req.path = path
       var codecName = path[path.length - 1].split('.')[0]
       var codec = this.codecs[codecName]
       if (!codec) {
         err = new Error('unknown codec ' + codecName)
-				return true
+        return true
       }
       q.push(cb => {
         if (req.id) {
