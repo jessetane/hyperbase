@@ -34,8 +34,8 @@ class Hyperbase extends EventTarget {
     this.store = opts.store
     this.codecs = opts.codecs || {}
     this.timeout = opts.timeout || 1000
-    this.pathDelimiter = opts.pathDelimiter || '/'
-    this.pathWildcard = opts.pathWildcard || '*'
+    this.pathDelimiter = opts.pathDelimiter
+    this.pathWildcard = opts.pathWildcard
     this.messageLifetime = opts.messageLifetime || 1000 * 15
     this.messages = {}
     this.queue = []
@@ -231,8 +231,7 @@ class Hyperbase extends EventTarget {
     if (!opts || typeof opts !== 'object') {
       throw new Error('stream: invalid options ' + JSON.stringify(opts))
     }
-    path = this.normalizePath(path, true)
-    // console.log('valid?', path, opts)
+    path = this.normalizePath(path, { allowWild: true })
     if (!path || path.length === 0) {
       throw new Error('invalid path')
     }
@@ -273,7 +272,7 @@ class Hyperbase extends EventTarget {
   watch (paths, listener, fn) {
     if (!Array.isArray(paths)) paths = [paths]
     paths = paths.map(path => {
-      path = this.normalizePath(path, true)
+      path = this.normalizePath(path, { allowWild: true })
       if (!path) throw new Error('invalid path')
       return path
     })
@@ -300,7 +299,7 @@ class Hyperbase extends EventTarget {
   unwatch (paths, listener) {
     if (!Array.isArray(paths)) paths = [paths]
     paths = paths.map(path => {
-      path = this.normalizePath(path, true)
+      path = this.normalizePath(path, { allowWild: true })
       if (!path) throw new Error('invalid path')
       return path
     })
@@ -361,27 +360,26 @@ class Hyperbase extends EventTarget {
     })
   }
 
-  normalizePath (path, allowWild) {
+  normalizePath () {
+    return Hyperbase.normalizePath.call(this, ...arguments)
+  }
+
+  static normalizePath (path, opts = {}) {
     if (typeof path === 'string') {
-      path = path.split(this.pathDelimiter)
+      var pathDelimiter = opts.pathDelimiter || this.pathDelimiter || '/'
+      path = path.split(pathDelimiter)
+    } else if (!Array.isArray(path)) {
+      return
     }
-    path = path.map(part => part === this.pathWildcard ? null : part)
-    var i = 0
-    var wild = false
-    while (i < path.length) {
-      var part = path[i]
-      if (part === null) {
-        if (allowWild) {
-          wild = true
-        } else {
-          return
-        }
-      } else if (wild) {
-        return
+    var pathWildcard = opts.pathWildcard || this.pathWildcard || '*'
+    var allowWild = opts.allowWild || this.allowWild || false
+    var invalid = path.find((part, i) => {
+      if (part === pathWildcard) {
+        if (!allowWild) return true
+        path[i] = null
       }
-      i++
-    }
-    return path
+    })
+    return invalid ? undefined : path
   }
 }
 
