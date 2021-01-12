@@ -103,8 +103,15 @@ class HyperbasePeer extends Rpc {
       return
     }
     stream.addEventListener('data', evt => this.call(`${streamId}.data`, evt.detail))
-    stream.addEventListener('error', evt => this.call(`${streamId}.error`, evt.detail))
     stream.addEventListener('end', () => this.call(`${streamId}.end`))
+    stream.addEventListener('error', evt => {
+      var err = evt.detail
+      var error = {}
+      if (err.message) error.message = err.message
+      if (err.code) error.code = err.code
+      if (err.data) error.data = err.data
+      this.call(`${streamId}.error`, error)
+    })
     cb()
   }
   

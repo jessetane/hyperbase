@@ -74,6 +74,7 @@ if (argv.help) {
       opts.lte = argv.lte
       peer.setInterface(streamId, {
         data: data => console.log(data),
+        error: err => console.error('error:', err),
         end: () => {
           peer.setInterface(streamId)
           process.exit()
