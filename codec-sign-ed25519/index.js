@@ -24,6 +24,12 @@ class HyperbaseCodecSignEd25519 {
     return this._publicKey
   }
 
+  _shouldVerify (r, shouldVerify = true) {
+    if (r.verifyExisting !== undefined) shouldVerify = r.verifyExisting
+    else if (this.verifyExisting !== undefined) shouldVerify = this.verifyExisting
+    return shouldVerify
+  }
+
   _verify (r) {
     var hash = nacl.hash(r.data.subarray(sigSize))
     var sigBuffer = r.data.subarray(0, sigSize)
@@ -37,8 +43,15 @@ class HyperbaseCodecSignEd25519 {
       var view = new DataView(data.buffer)
       var existing = req.existingData
       if (existing) {
-        var shouldVerify = req.verifyExisting !== undefined ? req.verifyExisting : this.verifyExisting !== false
-        if (shouldVerify && this._verify(Object.assign({}, req, { data: existing }))) {
+        /*
+        // should we allow syncing duplicate data?
+        if (existing.length === data.length) {
+          if (existing.every((b, i) => b === data[i])) {
+            return cb(null, req)
+          }
+        }
+        */
+        if (this._shouldVerify(req) && this._verify(Object.assign({}, req, { data: existing }))) {
           var time = view.getFloat64(sigSize, true)
           var timeExisting = new DataView(existing.buffer).getFloat64(sigSize, true)
           if (time <= timeExisting) {
@@ -79,10 +92,7 @@ class HyperbaseCodecSignEd25519 {
 
   read (res, cb) {
     if (res.data === null) return cb(null, res)
-    var shouldVerify = true
-    if (res.verifyExisting !== undefined) shouldVerify = res.verifyExisting
-    else if (this.verifyExisting !== undefined) shouldVerify = this.verifyExisting
-    if (shouldVerify && !this._verify(res)) {
+    if (this._shouldVerify(res) && !this._verify(res)) {
       return cb(new Error(`${this.constructor.name}: bad signature for ${res.path.join('/')}`))
     }
     res.time = new DataView(res.data.buffer).getFloat64(sigSize, true)

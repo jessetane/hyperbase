@@ -1,11 +1,24 @@
 class HyperbaseCodecRaw {
   write (req, cb) {
-    cb(null, req)
+    try {
+      this.serialize(req)
+      cb(null, req)
+    } catch (err) {
+      cb(err)
+    }
   }
 
   read (res, cb) {
-    cb(null, res)
+    try {
+      this.deserialize(res)
+      cb(null, res)
+    } catch (err) {
+      cb(err)
+    }
   }
+
+  serialize () {}
+  deserialize () {}
 }
 
 export default HyperbaseCodecRaw
