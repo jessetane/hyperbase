@@ -248,6 +248,7 @@ class Hyperbase extends EventTarget {
       if (opts.lte) opts.lte = unicodeShift(opts.lte, 1)
     }
     var stream = new EventTarget()
+    var readOpts = Object.assign({}, opts)
     this.store.stream(path, opts, res => {
       if (res === undefined) {
         stream.dispatchEvent(new CustomEvent('end'))
@@ -264,8 +265,8 @@ class Hyperbase extends EventTarget {
           stream.dispatchEvent(new CustomEvent('error', { detail: new Error('unknown codec ' + codecName) }))
           return
         }
-        for (var key in opts.readOpts) {
-          res[key] = opts.readOpts[key]
+        for (var key in readOpts) {
+          res[key] = readOpts[key]
         }
         codec.read(res, err => {
           if (err) {
