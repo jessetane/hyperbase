@@ -22,7 +22,8 @@
   },
   "devDependencies": {
     "ecstatic": "^4.1.4",
-    "es-module-shims": "^0.7.1"
+    "es-module-shims": "^0.7.1",
+    "tap-esm": "^1.4.1"
   },
   "bin": {
     "hyperbase": "cli.js"

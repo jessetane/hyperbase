@@ -64,12 +64,16 @@ class Hyperbase extends EventTarget {
     }
   }
 
-  write (batch, cb) {
-    var p = new P(cb)
-    if (!Array.isArray(batch)) {
-      p.reject(new Error('batch must be an array'))
-      return p
+  write (path, data, cb) {
+    if (data !== undefined && typeof data !== 'function') {
+      var batch = [{ path, data }]
+    } else if (Array.isArray(path)) {
+      batch = path
+    } else {
+      batch[path]
+      cb = data
     }
+    var p = new P(cb)
     var self = this
     var q = []
     var dupes = {}
@@ -96,9 +100,11 @@ class Hyperbase extends EventTarget {
         } else {
           this.messages[req.id] = now
         }
+      } else {
+        req.rawData = req.data
       }
       filtered.push(req)
-      var path = this.normalizePath(req.path)
+      path = this.normalizePath(req.path)
       if (!path || path.length === 0) {
         err = new Error('invalid path')
         return true
@@ -361,10 +367,10 @@ class Hyperbase extends EventTarget {
         heads = newHeads
         i++
       }
+      req.source = this.name
       heads.forEach(watcher => {
         watcher.listeners.forEach((fn, listener) => {
           if (req.source === listener.name) return
-          req = Object.assign({}, req, { source: this.name })
           fn(req)
         })
       })

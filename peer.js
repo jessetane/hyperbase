@@ -54,8 +54,15 @@ class HyperbasePeer extends Rpc {
     }
   }
 
-  _write (batch, cb) {
-    if (typeof cb !== 'function') cb = () => {}
+  _write (path, data, cb) {
+    if (data !== undefined && typeof data !== 'function') {
+      var batch = [{ path, data }]
+    } else if (Array.isArray(path)) {
+      batch = path
+    } else {
+      batch = [path]
+      cb = data
+    }
     var err = null
     if (!this.self) {
       err = batch.find(res => {
@@ -63,9 +70,13 @@ class HyperbasePeer extends Rpc {
       })
     }
     if (err) {
-      cb(err)
+      if (cb) cb(err)
     } else {
-      this.database.write(batch, cb)
+      this.database.write(batch, err => {
+        if (!cb) return
+        if (err) cb(err)
+        else cb()
+      })
     }
   }
 
@@ -73,11 +84,9 @@ class HyperbasePeer extends Rpc {
     if (typeof opts === 'function') {
       cb = opts
       opts = {}
-    } else if (typeof cb !== 'function') {
-      cb = () => {}
-      if (!this.self) {
-        delete opts.decode
-      }
+    }
+    if (opts && !this.self) {
+      delete opts.decode
     }
     this.database.read(...arguments)
   }
@@ -118,8 +127,9 @@ class HyperbasePeer extends Rpc {
   _watch (paths, cb) {
     if (typeof cb !== 'function') cb = () => {}
     try {
-      this.database.watch(paths, this, req => {
-        this.call('write', [req], err => {
+      this.database.watch(paths, this, msg => {
+        if (!this.self) delete msg.rawData
+        this.call('write', msg, err => {
           if (err) {
             // XXX TODO FIXME
             console.error('peer.watch: failed to write', this.name, err)
@@ -153,36 +163,36 @@ class HyperbasePeer extends Rpc {
     })
   }
 
-  write (batch) {
+  write () {
     return new Promise((res, rej) => {
-      this.call('write', batch, err => {
+      this.call('write', ...arguments, err => {
         if (err) rej(err)
         else res()
       })
     })
   }
 
-  read (path, opts) {
+  read () {
     return new Promise((res, rej) => {
-      this.call('read', path, opts, (err, r) => {
+      this.call('read', ...arguments, (err, r) => {
         if (err) rej(err)
         else res(r)
       })
     })
   }
 
-  watch (path) {
+  watch () {
     return new Promise((res, rej) => {
-      this.call('watch', path, err => {
+      this.call('watch', ...arguments, err => {
         if (err) rej(err)
         else res()
       })
     })
   }
 
-  unwatch (path) {
+  unwatch () {
     return new Promise((res, rej) => {
-      this.call('unwatch', path, err => {
+      this.call('unwatch', ...arguments, err => {
         if (err) rej(err)
         else res()
       })
