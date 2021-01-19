@@ -67,10 +67,12 @@ class Hyperbase extends EventTarget {
   write (path, data, cb) {
     if (data !== undefined && typeof data !== 'function') {
       var batch = [{ path, data }]
-    } else if (Array.isArray(path)) {
-      batch = path
     } else {
-      batch[path]
+      if (Array.isArray(path)) {
+        batch = path
+      } else {
+        batch[path]
+      }
       cb = data
     }
     var p = new P(cb)
