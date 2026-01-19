@@ -91,7 +91,7 @@ class TransportStream extends EventTarget {
 	close () {
 		if (!this.listening) return
 		this.listening = false
-		this.server.removeEventListener('connection', this.accept)
+		this.server.removeListener('connection', this.accept)
 		this.server.close()
 		delete this.server
 	}

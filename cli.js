@@ -4,7 +4,9 @@ import TransportTcp from './transport/tcp.js'
 import TransportUnix from './transport/unix.js'
 import StorageLevel from './storage/level.js'
 import { utf8 } from './util.js'
+import fs from 'fs/promises'
 
+const pkg = JSON.parse(await fs.readFile('package.json'))
 const opts = {}
 const args = process.argv.slice(2).filter(a => {
 	if (a.indexOf('-') === 0) {
@@ -18,6 +20,9 @@ const args = process.argv.slice(2).filter(a => {
 const cmd = args[0]
 let params = []
 switch (cmd) {
+	case 'version':
+		console.log(`hyperbase version ${pkg.version}`)
+		break
 	case 'write':
 		params = [{ path: args[1].split('/'), data: args[2] }]
 		connect()
@@ -39,19 +44,18 @@ switch (cmd) {
 		serve()
 		break
 	default:
-		console.log(`hyperbase version 7.0.0
+		console.log(`hyperbase ${pkg.version}
 
 commands:
-write path/to/key value
-read path/to/key
-list path/to/key
-serve
+version
+serve [--db=db.level]
+write path/to/key [value] (omit value to delete)
+read path/to/key [--format=utf8|json]
+list path/to/key [--format=utf8|json] [--params={gte:'b',limit:25}]
 
-options:
---unix=/tmp/hyperbase.sock
---tcp=::1:8453
---format=uf8|json
---params="{ gte: 'b', limit: 25 }"`)
+common options:
+--unix --unix=/tmp/hyperbase.sock
+--tcp --tcp=::1:8453`)
 }
 
 async function connect () {
@@ -63,7 +67,7 @@ async function connect () {
 	const peer = opts.tcp
 		? await TransportTcp.connect(typeof opts.tcp === 'string' ? opts.tcp : '::1:8453')
 		: await TransportUnix.connect(typeof opts.unix === 'string' ? opts.unix : '/tmp/hyperbase.sock')
-	console.log('connecting to ' + peer.address)
+	console.error('connecting to ' + peer.address)
 	peer.addEventListener('disconnect', evt => { if (evt.detail) throw evt.detail })
 	const res = await peer[cmd](...params)
 	if (res === undefined) {
@@ -94,13 +98,14 @@ function render (value) {
 async function serve () {
 	// storage
 	const database = new StorageLevel({ filename: opts.db || 'db.level' })
+	let unix, tcp;
 	// default to unix only
 	if (!opts.unix && !opts.tcp) {
 		opts.unix = true
 	}
 	// unix server
 	if (opts.unix) {
-		const unix = new TransportUnix({
+		unix = new TransportUnix({
 			database,
 			file: typeof opts.unix === 'string' ? opts.unix : '/tmp/hyberbase.sock'
 		})
@@ -117,7 +122,7 @@ async function serve () {
 		const parts = address.split(':') || []
 		const host = parts.slice(0, -1).join(':')
 		const port = parts.at(-1)
-		const tcp = new TransportTcp({ database, port, host })
+		tcp = new TransportTcp({ database, port, host })
 		tcp.addEventListener('accept', evt => {
 			const peer = evt.detail
 			console.log('tcp.accept:', peer.address)
@@ -125,4 +130,9 @@ async function serve () {
 		await tcp.listen()
 		console.log('tcp.listen:', tcp.host + ':' + tcp.port)
 	}
+	// graceful shutdown
+	process.once('SIGINT', code => {
+		unix?.close()
+		tcp?.close()
+	})
 }

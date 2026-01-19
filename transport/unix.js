@@ -6,7 +6,7 @@ class TransportUnix extends TransportStream {
 	constructor (opts = {}) {
 		super()
 		this.database = opts.database
-		this.file = opts.socket || '/tmp/hyperbase.sock'
+		this.file = opts.file || '/tmp/hyperbase.sock'
 	}
 
 	static createSocket (opts = {}) {
