@@ -6,9 +6,9 @@ function encode (obj) {
 	if (obj instanceof Uint8Array) return { _bson_: base64.encode(obj) }
 	if (Array.isArray(obj)) return obj.map(o => encode(o))
 	if (obj && typeof obj === 'object') {
-		const tmp = {}
-		for (var key in obj) tmp[key] = encode(obj[key])
-		obj = tmp
+	const tmp = {}
+	for (var key in obj) tmp[key] = encode(obj[key])
+	obj = tmp
 	}
 	return obj
 }
