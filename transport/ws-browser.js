@@ -1,21 +1,18 @@
-import HyperbasePeer from 'hyperbase/peer.js'
-import utf8 from 'utf8-transcoder/index.js'
-import BSON from 'hyperbase/bson.js'
+import Peer from '../peer.js'
+import BSON from '../bson.js'
+import { utf8, Deferred } from '../util.js'
 
-class HyperbaseTransportWsBrowser extends EventTarget {
-  connect (url) {
+class TransportWsBrowser extends EventTarget {
+  static connect (url) {
     var socket = new WebSocket(url)
     socket.binaryType = 'arraybuffer'
 		socket.remoteUrl = url
-    var peer = this.setupPeer(socket)
-    peer.address = 'ws|' + url
-    socket.addEventListener('open', () => {
-      peer.dispatchEvent(new Event('ready'))
-    })
+    var peer = TransportWsBrowser.setupPeer(socket)
+    peer.address = 'ws:' + url
     return peer
   }
 
-  setupPeer (socket) {
+  static setupPeer (socket) {
     socket.addEventListener('error', onclose)
     socket.addEventListener('close', onclose)
     function onclose (err) {
@@ -30,7 +27,7 @@ class HyperbaseTransportWsBrowser extends EventTarget {
     }
     // rpc interface
     var peer = new HyperbasePeer()
-    peer.address = 'ws|' + socket.remoteUrl
+    peer.address = 'ws:' + socket.remoteUrl
     peer.serialize = req => {
       // console.log('sending rpc:', req)
       req = new Uint8Array(utf8.encode(JSON.stringify(BSON.encode(req))))
@@ -54,11 +51,11 @@ class HyperbaseTransportWsBrowser extends EventTarget {
       peer.constructor.prototype.close.call(peer)
       peer.dispatchEvent(new Event('close'))
     }
+    socket.addEventListener('open', () => {
+      peer.dispatchEvent(new Event('ready'))
+    })
     return peer
   }
-
-	close () {
-	}
 }
 
-export default HyperbaseTransportWsBrowser
+export default TransportWsBrowser

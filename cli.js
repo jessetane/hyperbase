@@ -1,112 +1,128 @@
 #!/usr/bin/env node
 
-import Hyperbase from 'hyperbase/index.js'
-import HyperbaseTransportUnix from 'hyperbase/transport-unix/index.js'
-import nacl from 'tweetnacl/nacl.js'
-import base64 from 'base64-transcoder/index.js'
-import minimist from 'minimist/index.js'
+import TransportTcp from './transport/tcp.js'
+import TransportUnix from './transport/unix.js'
+import StorageLevel from './storage/level.js'
+import { utf8 } from './util.js'
 
-var argv = minimist(process.argv.slice(2), {
-  alias: {
-    d: 'delimiter',
-    h: 'help',
-    n: 'numeric',
-    l: 'limit',
-    r: 'reverse',
-    s: 'socket',
-    w: 'wildcard',
-    o: 'options'
-  },
-  boolean: [
-    'help',
-    'numeric'
-  ]
+const opts = {}
+const args = process.argv.slice(2).filter(a => {
+	if (a.indexOf('-') === 0) {
+		let [key, value] = a.split('=')
+		while (key[0] === '-') key = key.slice(1)
+		opts[key] = value || true
+	} else {
+		return true
+	}
 })
-var args = argv._
-var cmd = args[0]
-var path = args[1]
-var pathDelimiter = argv.delimiter || '/'
-var pathWildcard = argv.wildcard || '*'
-var options = {}
-if (!argv.options) {
-  argv.options = []
-} else if (!Array.isArray(argv.options)) {
-  argv.options = argv.options.split(',')
-}
-argv.options.forEach(pair => {
-  var parts = pair.split(':')
-  options[parts[0]] = parts[1]
-})
+const cmd = args[0]
+let params = []
+switch (cmd) {
+	case 'write':
+		params = [{ path: args[1].split('/'), data: args[2] }]
+		connect()
+		break
+	case 'read':
+		params = [args[1].split('/').map(p => p === '*' ? null : p)]
+		connect()
+		break
+	case 'list':
+		const path = args[1] ? args[1].split('/').map(p => p === '*' ? null : p) : []
+		const subOpts = new Function(`return ${opts.params || '{}'}`)()
+		if (subOpts.limit === undefined) {
+			subOpts.limit = 25
+		}
+		params = [path, subOpts]
+		connect()
+		break
+	case 'serve':
+		serve()
+		break
+	default:
+		console.log(`hyperbase version 7.0.0
 
-if (argv.help) {
-  help()
-} else {
-  connect((err, peer) => {
-    if (err) throw err
-    if (cmd === 'write') {
-      var data = args[2] || null
-      data = argv.numeric ? parseFloat(data) : data
-      path = Hyperbase.normalizePath(path, { pathDelimiter, pathWildcard })
-      var req = Object.assign({ path, data }, options)
-      peer.call('write', [req], err => {
-        if (err) throw err
-        process.exit()
-      })
-    } else if (cmd === 'read') {
-      if (options.decode === 'false') options.decode = false
-      else options.decode = true
-      path = Hyperbase.normalizePath(path, { pathDelimiter, pathWildcard })
-      peer.call('read', path, options, (err, data) => {
-        if (err) throw err
-        console.log(data)
-        process.exit()
-      })
-    } else if (cmd == 'stream') {
-      if (options.decode === 'false') options.decode = false
-      else options.decode = true
-      var streamId = 'stream.' + Math.random().toString().slice(2)
-      var opts = {}
-      opts.limit = argv.limit
-      opts.reverse = argv.reverse
-      opts.gt = argv.gt
-      opts.gte = argv.gte
-      opts.lt = argv.lt
-      opts.lte = argv.lte
-      peer.setInterface(streamId, {
-        data: data => console.log(data),
-        error: err => console.error('error:', err),
-        end: () => {
-          peer.setInterface(streamId)
-          process.exit()
-        }
-      })
-      path = Hyperbase.normalizePath(path, { pathDelimiter, pathWildcard, allowWild: true })
-      peer.call('stream', path, streamId, Object.assign(opts, options), err => {
-        if (err) throw err
-      })
-    }
-  })
+commands:
+write path/to/key value
+read path/to/key
+list path/to/key
+serve
+
+options:
+--unix=/tmp/hyperbase.sock
+--tcp=::1:8453
+--format=uf8|json
+--params="{ gte: 'b', limit: 25 }"`)
 }
 
-function connect (cb) {
-  var name = 'client.' + Math.random().toString().slice(2)
-  // console.log(name + ' connecting to ' + argv.socket)
-  var unix = new HyperbaseTransportUnix()
-  var peer = unix.connect(argv.socket)
-  peer.database =  { name }
-  peer.addEventListener('connect', peer.auth)
-  peer.addEventListener('shouldauth', evt => {
-    if (peer.authState !== true) cb(peer.authState)
-    else cb(null, peer)
-  })
-  peer.addEventListener('error', evt => {
-    throw evt.detail
-  })
+async function connect () {
+	if (!opts.unix && !opts.tcp) {
+		opts.unix = true
+	} else if (opts.unix && opts.tcp) {
+		throw new Error('cannot set unix AND tcp')
+	}
+	const peer = opts.tcp
+		? await TransportTcp.connect(typeof opts.tcp === 'string' ? opts.tcp : '::1:8453')
+		: await TransportUnix.connect(typeof opts.unix === 'string' ? opts.unix : '/tmp/hyperbase.sock')
+	console.log('connecting to ' + peer.address)
+	peer.addEventListener('disconnect', evt => { if (evt.detail) throw evt.detail })
+	const res = await peer[cmd](...params)
+	if (res === undefined) {
+		console.log('ok')
+	} else {
+		if (Array.isArray(res)) {
+			for (let entry of res) {
+				entry.data = render(entry.data)
+			}
+		} else {
+			res.data = render(res.data)
+		}
+		console.log(res)
+	}
+	process.exit(0)
 }
 
-function help () {
-  console.log(`hyperbase cli version 1.0.0
+function render (value) {
+	switch (opts.format) {
+		case 'json':
+			return value ? JSON.parse(utf8.decode(value)) : value
+		case 'utf8':
+		default:
+			return value ? utf8.decode(value) : value
+	}
+}
 
-  -h,--help   print help message
-`)
+async function serve () {
+	// storage
+	const database = new StorageLevel({ filename: opts.db || 'db.level' })
+	// default to unix only
+	if (!opts.unix && !opts.tcp) {
+		opts.unix = true
+	}
+	// unix server
+	if (opts.unix) {
+		const unix = new TransportUnix({
+			database,
+			file: typeof opts.unix === 'string' ? opts.unix : '/tmp/hyberbase.sock'
+		})
+		unix.addEventListener('accept', evt => {
+			const peer = evt.detail
+			console.log('unix.accept:', peer.address)
+		})
+		await unix.listen()
+		console.log('unix.listen:', unix.file)
+	}
+	// tcp server
+	if (opts.tcp) {
+		const address = typeof opts.tcp === 'string' ? opts.tcp : '::1:8453'
+		const parts = address.split(':') || []
+		const host = parts.slice(0, -1).join(':')
+		const port = parts.at(-1)
+		const tcp = new TransportTcp({ database, port, host })
+		tcp.addEventListener('accept', evt => {
+			const peer = evt.detail
+			console.log('tcp.accept:', peer.address)
+		})
+		await tcp.listen()
+		console.log('tcp.listen:', tcp.host + ':' + tcp.port)
+	}
 }

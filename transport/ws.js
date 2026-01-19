@@ -1,50 +1,24 @@
-import EventTarget from 'xevents/event-target.js'
-import Event from 'xevents/event.js'
-import CustomEvent from 'xevents/custom-event.js'
 import WebSocket from 'ws'
-import HyperbasePeer from 'hyperbase/peer.js'
-import utf8 from 'utf8-transcoder'
-import BSON from 'hyperbase/bson.js'
+import Peer from '../peer.js'
+import BSON from '../bson.js'
+import { utf8, Deferred } from '../util.js'
 
-class HyperbaseTransportWs extends EventTarget {
+class TransportWs extends EventTarget {
   constructor (opts = {}) {
     super()
-    this.accept = this.accept.bind(this)
     this.host = opts.host || '::1'
     this.port = opts.port || '8453'
   }
 
-  listen () {
-    if (this.listening) return
-    this.listening = true
-    this.server = new WebSocket.Server({ port: this.port, host: this.host }, err => {
-      if (err) {
-        throw err
-      } else {
-        this.dispatchEvent(new Event('listen'))
-      }
-    })
-    this.server.on('connection', this.accept)
-  }
-
-  accept (socket) {
-    var peer = this.setupPeer(socket)
-    this.dispatchEvent(new CustomEvent('accept', { detail: peer }))
-    peer.dispatchEvent(new Event('connect'))
-  }
-
-  connect (url) {
+  static connect (url) {
     var socket = new WebSocket(url)
     socket.binaryType = 'arraybuffer'
 		socket.remoteUrl = url
-    var peer = this.setupPeer(socket)
-    socket.on('open', () => {
-      peer.dispatchEvent(new Event('connect'))
-    })
+    var peer = TransportWs.setupPeer(socket)
     return peer
   }
 
-  setupPeer (socket) {
+  static setupPeer (socket) {
     socket.on('error', onclose)
     socket.on('close', onclose)
     function onclose (err) {
@@ -59,7 +33,7 @@ class HyperbaseTransportWs extends EventTarget {
     }
     // rpc interface
     var peer = new HyperbasePeer()
-    peer.address = 'ws|' + (socket.remoteUrl || peer.name)
+    peer.address = 'ws:' + (socket.remoteUrl || peer.name)
     peer.serialize = req => {
       // console.log('sending rpc:', req)
       req = utf8.encode(JSON.stringify(BSON.encode(req)))
@@ -83,8 +57,31 @@ class HyperbaseTransportWs extends EventTarget {
       peer.constructor.prototype.close.call(peer)
       peer.dispatchEvent(new Event('close'))
     }
+    socket.on('open', () => {
+      peer.dispatchEvent(new Event('ready'))
+    })
     return peer
   }
+
+
+  listen () {
+    if (this.listening) return
+    this.listening = true
+    this.server = new WebSocket.Server({ port: this.port, host: this.host }, err => {
+      if (err) {
+        throw err
+      } else {
+        this.dispatchEvent(new Event('listen'))
+      }
+    })
+    this.server.on('connection', this.accept)
+  }
+
+  accept = socket => {
+    var peer = this.setupPeer(socket)
+    this.dispatchEvent(new CustomEvent('accept', { detail: peer }))
+  }
+
 
   close () {
     if (!this.listening) return
@@ -95,4 +92,4 @@ class HyperbaseTransportWs extends EventTarget {
   }
 }
 
-export default HyperbaseTransportWs
+export default TransportWs
