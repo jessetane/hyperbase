@@ -31,6 +31,36 @@ tap('read', async t => {
 	t.equal(stdout, `{ path: [ 'a' ], data: '42' }`)
 })
 
+tap('nested write', async t => {
+	const client = spawn(`node cli.js ${transport} write users/foo/name Foo`)
+	const { stdout } = await client.onclose
+	t.equal(stdout, 'ok')
+})
+
+tap('nested read', async t => {
+	const client = spawn(`node cli.js ${transport} read users/foo/name`)
+	const { stdout } = await client.onclose
+	t.equal(stdout, `{ path: [ 'users', 'foo', 'name' ], data: 'Foo' }`)
+})
+
+tap('list nested', async t => {
+	const client = spawn(`node cli.js ${transport} list users/foo`)
+	const { stdout } = await client.onclose
+	t.equal(stdout, `[ { path: [ 'users', 'foo', 'name' ], data: 'Foo' } ]`)
+})
+
+tap('delete', async t => {
+	const client = spawn(`node cli.js ${transport} write a`)
+	const { stdout } = await client.onclose
+	t.equal(stdout, 'ok')
+})
+
+tap('verify delete', async t => {
+	const client = spawn(`node cli.js ${transport} read a`)
+	const { stdout } = await client.onclose
+	t.equal(stdout, `{ path: [ 'a' ], data: null }`)
+})
+
 tap('close server', async t => {
 	server.process.kill('SIGINT')
 	await server.onclose
