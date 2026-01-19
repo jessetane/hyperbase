@@ -15,7 +15,8 @@
     "ws": "^8.18.1"
   },
   "devDependencies": {
-    "ecstatic": "^4.1.4"
+    "ecstatic": "^4.1.4",
+    "tap-esm": "^3.0.0"
   },
   "bin": {
     "hyperbase": "cli.js"
