@@ -1,8 +1,8 @@
 import net from 'net'
 import TerminalStream from 'terminal-stream'
+import { pack, unpack } from 'msgpackr'
 import Peer from '../peer.js'
-import BSON from '../bson.js'
-import { utf8, Deferred } from '../util.js'
+import { Deferred } from '../util.js'
 
 class TransportStream extends EventTarget {
 	static connect (socket, opts = {}) {
@@ -44,14 +44,8 @@ class TransportStream extends EventTarget {
 		// rpc interface
 		if (!peer) {
 			peer = new Peer()
-			peer.serialize = req => {
-				req = utf8.encode(JSON.stringify(BSON.encode(req)))
-				return req
-			}
-			peer.deserialize = res => {
-				res = BSON.decode(JSON.parse(utf8.decode(res)))
-				return res
-			}
+			peer.serialize = pack
+			peer.deserialize = unpack
 			peer.close = function (err) {
 				if (peer.closed) return
 				peer.closed = true

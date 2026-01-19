@@ -1,6 +1,7 @@
 import fs from 'fs/promises'
 import tap from 'tap-esm'
 import { spawn, delay } from './util-test.js'
+import TransportUnix from './transport/unix.js'
 
 let server;
 const dbFile = 'test.level'
@@ -59,6 +60,15 @@ tap('verify delete', async t => {
 	const client = spawn(`node cli.js ${transport} read a`)
 	const { stdout } = await client.onclose
 	t.equal(stdout, `{ path: [ 'a' ], data: null }`)
+})
+
+tap('binary data', async t => {
+	const peer = await TransportUnix.connect(socketFile)
+	await peer.write({ path: ['binary'], data: new Uint8Array([1,2,3]) })
+	const item = await peer.read(['binary'])
+	t.ok(item.data instanceof Uint8Array)
+	t.equal(item.data[1], 2)
+	peer.close()
 })
 
 tap('close server', async t => {
