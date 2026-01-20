@@ -107,7 +107,7 @@ async function serve () {
 	if (opts.unix) {
 		unix = new TransportUnix({
 			database,
-			file: typeof opts.unix === 'string' ? opts.unix : '/tmp/hyberbase.sock'
+			file: typeof opts.unix === 'string' ? opts.unix : '/tmp/hyperbase.sock'
 		})
 		unix.addEventListener('accept', evt => {
 			const peer = evt.detail
