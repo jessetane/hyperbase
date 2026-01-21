@@ -10,7 +10,9 @@ class TransportTcp extends TransportStream {
 	}
 
 	static createSocket (opts = {}) {
-		return net.connect(opts.port, opts.host)
+		const socket = net.connect(opts.port, opts.host)
+		socket.meta = { host: opts.host, port: opts.port }
+		return socket
 	}
 
 	static connect (remoteAddress, opts = {}) {
@@ -18,7 +20,6 @@ class TransportTcp extends TransportStream {
 		const host = parts.slice(0, -1).join(':')
 		const port = parts.at(-1)
 		const socket = this.createSocket({ host, port })
-		socket.meta = { host, port }
 		return super.connect(socket, opts)
 	}
 

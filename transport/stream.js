@@ -10,13 +10,14 @@ class TransportStream extends EventTarget {
 		const peer = this.setupPeer(socket)
 		peer.reconnectTimeout = opts.reconnectTimeout || 5 * 1000
 		peer.promise = p
-		return peer
+		return opts.nowait ? peer : peer.promise
 	}
 
 	static setupPeer (socket, peer) {
 		// unix/tcp socket
 		socket.on('error', onclose)
 		socket.on('close', onclose)
+		const Class = this
 		function onclose (err) {
 			peer.send = null
 			stream._send = null
@@ -28,8 +29,8 @@ class TransportStream extends EventTarget {
 			if (peer.closed) return
 			if (peer.reconnectTimeout) {
 				peer.reconnectTimer = setTimeout(() => {
-					const socket = this.createSocket(peer)
-					TransportTcp.setupPeer(socket, peer)
+					const socket = Class.createSocket(peer)
+					Class.setupPeer(socket, peer)
 				}, peer.reconnectTimeout)
 			} else {
 				peer.close(err)

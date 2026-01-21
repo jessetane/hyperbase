@@ -10,12 +10,13 @@ class TransportUnix extends TransportStream {
 	}
 
 	static createSocket (opts = {}) {
-		return net.connect(opts.file)
+		const socket = net.connect(opts.file)
+		socket.meta = { file: opts.file }
+		return socket
 	}
 
 	static connect (file = '/tmp/hyperbase.sock', opts = {}) {
 		const socket = this.createSocket({ file })
-		socket.meta = { file }
 		return super.connect(socket, opts)
 	}
 
