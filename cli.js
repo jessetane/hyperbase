@@ -3,7 +3,6 @@
 import TransportTcp from './transport/tcp.js'
 import TransportUnix from './transport/unix.js'
 import StorageLevel from './storage/level.js'
-import { utf8 } from './util.js'
 import fs from 'fs/promises'
 
 const pkg = JSON.parse(await fs.readFile('package.json'))
@@ -50,8 +49,8 @@ commands:
 version
 serve [--db=db.level]
 write path/to/key [value] (omit value to delete)
-read path/to/key [--format=utf8|json]
-list path/to/key [--format=utf8|json] [--params={gte:'b',limit:25}]
+read path/to/key [--format=utf8|json|binary]
+list path/to/key [--format=utf8|json|binary] [--params={gte:'b',limit:25}]
 
 common options:
 --unix --unix=/tmp/hyperbase.sock
@@ -87,11 +86,13 @@ async function connect () {
 
 function render (value) {
 	switch (opts.format) {
+		case 'binary':
+			return value
 		case 'json':
-			return value ? JSON.parse(utf8.decode(value)) : value
+			return value ? JSON.parse(value) : value
 		case 'utf8':
 		default:
-			return value ? utf8.decode(value) : value
+			return value ? value.toString('utf8') : value
 	}
 }
 
