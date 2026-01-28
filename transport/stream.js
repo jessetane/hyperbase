@@ -4,6 +4,8 @@ import { pack, unpack } from 'msgpackr'
 import Peer from '../peer.js'
 import { Deferred } from '../util.js'
 
+const hasBuffer = typeof Buffer !== 'undefined'
+
 class TransportStream extends EventTarget {
 	static connect (socket, opts = {}) {
 		const p = new Deferred()
@@ -46,7 +48,15 @@ class TransportStream extends EventTarget {
 		if (!peer) {
 			peer = new Peer()
 			peer.serialize = pack
-			peer.deserialize = unpack
+			peer.deserialize = m => {
+				if (hasBuffer) {
+					// msgpackr uses whatever binary container you pass in
+					// if Buffer is defined we may as well use that since
+					// it comes with convenient string utils etc
+					m = Buffer.from(m)
+				}
+				return unpack(m)
+			}
 			peer.close = function (err) {
 				if (peer.closed) return
 				peer.closed = true
