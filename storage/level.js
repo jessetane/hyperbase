@@ -1,6 +1,4 @@
 import { ClassicLevel } from 'classic-level'
-import { dirname } from 'path'
-import { fileURLToPath } from 'url'
 
 class StorageLevel {
 	constructor (opts = {}) {
