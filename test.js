@@ -71,6 +71,38 @@ tap('binary data', async t => {
 	peer.close()
 })
 
+tap('wildcard support', async t => {
+	await spawn(`node cli.js ${transport} write a/foo Foo`).onclose
+	await spawn(`node cli.js ${transport} write b/bar Bar`).onclose
+	await spawn(`node cli.js ${transport} write x/a/c/baz Baz`).onclose
+	await spawn(`node cli.js ${transport} write x/b/d/qux Qux`).onclose
+	await spawn(`node cli.js ${transport} write x/b/e/corge Corge`).onclose
+	await spawn(`node cli.js ${transport} write y/b/e/fred Fred`).onclose
+
+	let valid = spawn(`node cli.js ${transport} list *`)
+	let { stdout } = await valid.onclose
+	let items = new Function(`return ${stdout}`)()
+	t.equal(items.length, 2)
+	t.equal(items[0].data, 'Foo')
+	t.equal(items[1].data, 'Bar')
+
+	valid = spawn(`node cli.js ${transport} list x/*/*`)
+	stdout = (await valid.onclose).stdout
+	items = new Function(`return ${stdout}`)()
+	t.equal(items.length, 3)
+	t.equal(items[0].data, 'Baz')
+	t.equal(items[1].data, 'Qux')
+	t.equal(items[2].data, 'Corge')
+
+	const invalid = spawn(`node cli.js ${transport} list x/*/e`)
+	try {
+		await invalid.onclose
+		t.fail('should throw')
+	} catch (err) {
+		t.ok(err.message.includes('wildcard cannot precede named path'))
+	}
+})
+
 tap('close server', async t => {
 	server.process.kill('SIGINT')
 	await server.onclose

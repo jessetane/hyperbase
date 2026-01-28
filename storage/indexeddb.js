@@ -28,6 +28,11 @@ class StorageIndexedDb {
 			while (n-- > 0) strPath += this.delim
 			if (component === null) {
 				if (allowWild) {
+					while (i <= last) {
+						if (path[i] !== null) {
+							throw new Error('wildcard cannot precede named path')
+						}
+					}
 					break
 				} else {
 					return

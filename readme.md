@@ -119,6 +119,10 @@ Lists key-value pairs under the specified path.
 await db.list(['users'])
 // [ { path: [ 'users', 'foo' ], data: 'bar' }, ... ]
 
+// use wildcard paths (null) to list all items at arbitrary depths
+await db.list(['users', null])
+// [ { path: [ 'users', 'foo', 'bar' ], data: 'baz' } ]
+
 // list items with keys starting after 'foo'
 await db.list(['users'], { gt: 'foo' })
 ```

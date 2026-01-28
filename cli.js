@@ -28,7 +28,7 @@ switch (cmd) {
 		connect()
 		break
 	case 'read':
-		params = [args[1].split('/').map(p => p === '*' ? null : p)]
+		params = [args[1].split('/')]
 		connect()
 		break
 	case 'list':
