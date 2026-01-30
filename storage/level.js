@@ -46,7 +46,7 @@ class StorageLevel {
 			if (!path) {
 				throw new Error('invalid path ' + JSON.stringify(req.path, null, 2))
 			}
-			if (req.data === null || req.data === undefined) {
+			if (req.data === null) {
 				return { type: 'del', key: path }
 			} else {
 				return { type: 'put', key: path, value: Buffer.from(req.data), valueEncoding: 'buffer' }
@@ -65,7 +65,7 @@ class StorageLevel {
 		} catch (err) {
 			if (err.code !== 'LEVEL_NOT_FOUND') throw err
 		}
-		return { path, data: data === undefined ? null : data }
+		return { path, data }
 	}
 
 	async list (path, opts = {}) {
@@ -94,7 +94,7 @@ class StorageLevel {
 			const value = i[1]
 			return {
 				path: key.split(this.delim).filter(c => c),
-				data: value === undefined ? null : value
+				data: value
 			}
 		})
 	}
