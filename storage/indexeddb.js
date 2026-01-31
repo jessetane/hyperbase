@@ -116,8 +116,13 @@ class StorageIndexedDb {
 		path[path.length] = null
 		const strPathPre = this.pathToStr(path, true)
 		for (const k in opts) {
-			if (opts[k] === undefined || opts[k] === null || opts[k] === '') {
+			const opt = opts[k]
+			if (opt === undefined || opt === null || opt === '') {
 				delete opts[k]
+			} else if (k.startsWith('gt') || k.startsWith('lt')) {
+				if (Array.isArray(opt)) {
+					opts[k] = this.pathToStr(opt).slice(strPathPre.length)
+				}
 			}
 		}
 		if (opts.gt) {

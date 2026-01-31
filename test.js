@@ -129,6 +129,16 @@ tap('list gte empty', async t => {
 	t.equal(items[1].data, 'B')
 })
 
+tap('list gt with wildcard', async t => {
+	await spawn(`node cli.js ${transport} write g/h/a A`).onclose
+	await spawn(`node cli.js ${transport} write g/h/b B`).onclose
+	const client = spawn(`node cli.js ${transport} list g/* --params={gt:['g','h','a']}`)
+	const { stdout } = await client.onclose
+	const items = new Function(`return ${stdout}`)()
+	t.equal(items.length, 1)
+	t.equal(items[0].data, 'B')
+})
+
 tap('close server', async t => {
 	server.process.kill('SIGINT')
 	await server.onclose
