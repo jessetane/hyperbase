@@ -117,6 +117,18 @@ tap('list gte', async t => {
 	t.equal(items[1].data, 'D')
 })
 
+tap('list gte empty', async t => {
+	await spawn(`node cli.js ${transport} write e/a A`).onclose
+	await spawn(`node cli.js ${transport} write e/b B`).onclose
+
+	const client = spawn(`node cli.js ${transport} list e --params={gte:''}`)
+	const { stdout } = await client.onclose
+	const items = new Function(`return ${stdout}`)()
+	t.equal(items.length, 2)
+	t.equal(items[0].data, 'A')
+	t.equal(items[1].data, 'B')
+})
+
 tap('close server', async t => {
 	server.process.kill('SIGINT')
 	await server.onclose

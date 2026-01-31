@@ -73,6 +73,11 @@ class StorageLevel {
 		path = path.slice()
 		path[path.length] = null
 		const strPathPre = this.pathToStr(path, true)
+		for (const k in opts) {
+			if (opts[k] === undefined || opts[k] === null || opts[k] === '') {
+				delete opts[k]
+			}
+		}
 		if (opts.gt) {
 			opts.gt = strPathPre + opts.gt
 		} else if (opts.gte) {
