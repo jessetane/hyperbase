@@ -103,6 +103,20 @@ tap('wildcard support', async t => {
 	}
 })
 
+tap('list gte', async t => {
+	await spawn(`node cli.js ${transport} write l/a A`).onclose
+	await spawn(`node cli.js ${transport} write l/b B`).onclose
+	await spawn(`node cli.js ${transport} write l/c C`).onclose
+	await spawn(`node cli.js ${transport} write l/d D`).onclose
+
+	const client = spawn(`node cli.js ${transport} list l --params={gte:'c'}`)
+	const { stdout } = await client.onclose
+	const items = new Function(`return ${stdout}`)()
+	t.equal(items.length, 2)
+	t.equal(items[0].data, 'C')
+	t.equal(items[1].data, 'D')
+})
+
 tap('close server', async t => {
 	server.process.kill('SIGINT')
 	await server.onclose
