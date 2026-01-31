@@ -108,7 +108,6 @@ tap('list gte', async t => {
 	await spawn(`node cli.js ${transport} write l/b B`).onclose
 	await spawn(`node cli.js ${transport} write l/c C`).onclose
 	await spawn(`node cli.js ${transport} write l/d D`).onclose
-
 	const client = spawn(`node cli.js ${transport} list l --params={gte:'c'}`)
 	const { stdout } = await client.onclose
 	const items = new Function(`return ${stdout}`)()
@@ -120,7 +119,6 @@ tap('list gte', async t => {
 tap('list gte empty', async t => {
 	await spawn(`node cli.js ${transport} write e/a A`).onclose
 	await spawn(`node cli.js ${transport} write e/b B`).onclose
-
 	const client = spawn(`node cli.js ${transport} list e --params={gte:''}`)
 	const { stdout } = await client.onclose
 	const items = new Function(`return ${stdout}`)()
