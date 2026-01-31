@@ -23,7 +23,7 @@ switch (cmd) {
 		console.log(`hyperbase version ${pkg.version}`)
 		break
 	case 'write':
-		params = [{ path: args[1].split('/'), data: args[2] }]
+		params = [{ path: args[1].split('/'), data: args[2] || null }]
 		connect()
 		break
 	case 'read':

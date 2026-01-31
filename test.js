@@ -59,7 +59,7 @@ tap('delete', async t => {
 tap('verify delete', async t => {
 	const client = spawn(`node cli.js ${transport} read a`)
 	const { stdout } = await client.onclose
-	t.equal(stdout, `{ path: [ 'a' ], data: null }`)
+	t.equal(stdout, `{ path: [ 'a' ], data: undefined }`)
 })
 
 tap('binary data', async t => {
