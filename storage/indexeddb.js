@@ -1,6 +1,8 @@
-class StorageIndexedDb {
+import { Storage } from './index.js'
+
+class StorageIndexedDb extends Storage {
 	constructor (opts = {}) {
-		this.delim = opts.delim || '\udbff\udfff'
+		super(opts)
 		if (opts.dbname) {
 			this.dbname = opts.dbname
 		} else {
@@ -14,34 +16,6 @@ class StorageIndexedDb {
 				req.result.createObjectStore('default')
 			}
 		})
-	}
-
-	pathToStr (path, allowWild) {
-		var strPath = ''
-		var len = path.length
-		var last = len - 1
-		var i = 0
-		while (i <= last) {
-			var component = path[i]
-			var n = len - i
-			if (i === 0) n--
-			while (n-- > 0) strPath += this.delim
-			if (component === null) {
-				if (allowWild) {
-					while (i <= last) {
-						if (path[i] !== null) {
-							throw new Error('wildcard cannot precede named path')
-						}
-					}
-					break
-				} else {
-					return
-				}
-			}
-			strPath += component
-			i++
-		}
-		return strPath
 	}
 
 	async write (batch) {
@@ -98,7 +72,7 @@ class StorageIndexedDb {
 		})
 	}
 
-	async list (path, opts = {}) {
+	async list (path = [], opts = {}) {
 		let s, f, p = new Promise((_s, _f) => { s = _s; f = _f })
 		const batch = []
 		this.stream(path, opts, res => {
@@ -112,19 +86,7 @@ class StorageIndexedDb {
 	}
 
 	async stream (path, opts, emit) {
-		path = path.slice()
-		path[path.length] = null
-		const strPathPre = this.pathToStr(path, true)
-		for (const k in opts) {
-			const opt = opts[k]
-			if (opt === undefined || opt === null || opt === '') {
-				delete opts[k]
-			} else if (k.startsWith('gt') || k.startsWith('lt')) {
-				if (Array.isArray(opt)) {
-					opts[k] = this.pathToStr(opt).slice(strPathPre.length)
-				}
-			}
-		}
+		const strPathPre = super.list(path, opts)
 		if (opts.gt) {
 			opts.gt = strPathPre + opts.gt
 		} else if (opts.gte) {
