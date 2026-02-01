@@ -132,7 +132,7 @@ async function serve () {
 		console.log('tcp.listen:', tcp.host + ':' + tcp.port)
 	}
 	// graceful shutdown
-	process.once('SIGINT', code => {
+	process.once('SIGINT', () => {
 		unix?.close()
 		tcp?.close()
 	})
