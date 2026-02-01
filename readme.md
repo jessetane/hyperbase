@@ -103,16 +103,18 @@ await db.read(['foo'])
 ```
 
 ### `await db.list(path[, opts])`
-Lists key-value pairs under the specified path.
+Lists key-value pairs under the specified path. Note that items are partitioned by path length (depth). This method returns only immediate children (like `ls` in a directory), not a recursive tree. Use wildcards to target specific deeper levels.
 
-- `path` An Array of keys.
+- `path` An Array of keys. Use `null` as a wildcard (e.g., `['users', null]`) to match any key at that position.
 - `opts` An optional Object.
-  - gte (String) Greater than or equal to
-  - gt (String) Greater than
-  - lte (String) Less than or equal to
-  - lt (String) Less than
-  - reverse (Boolean) Reverse the order of results
-  - limit (Number) Maximum number of results
+  - `gte` (String|Array) Greater than or equal to.
+  - `gt` (String|Array) Greater than.
+  - `lte` (String|Array) Less than or equal to.
+  - `lt` (String|Array) Less than.
+  - `reverse` (Boolean) Reverse the order of results.
+  - `limit` (Number) Maximum number of results.
+
+Pass an array to comparison options (`gt`, `gte`, `lt`, `lte`) to compare against the full path structure, which is essential for correct pagination and hierarchical filtering.
 
 ```javascript
 // list all items under users
@@ -125,6 +127,17 @@ await db.list(['users', null])
 
 // list items with keys starting after 'foo'
 await db.list(['users'], { gt: 'foo' })
+
+// pagination: list the next 10 items starting after the last known path
+const page1 = await db.list(['users', null], { limit: 10 })
+const page2 = await db.list(['users', null], { limit: 10, gt: page1.at(-1).path })
+
+// advanced: use wildcards in comparison options
+// list items in 'users' that are lexicographically > 'users/m*'
+// this effectively skips 'users/a...' through 'users/l...'
+await db.list(['users', null], {
+  gt: ['users', 'm', null]
+})
 ```
 
 ## Test
