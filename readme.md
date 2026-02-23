@@ -40,7 +40,7 @@ console.log(item)
 ```javascript
 import TransportUnix from 'hyperbase/transport/unix.js'
 // server
-const server = new TransportUnix()
+const server = new TransportUnix({ database: db })
 await server.listen()
 // client
 const peer = await TransportUnix.connect()
@@ -54,7 +54,7 @@ console.log(item)
 ```javascript
 import TransportTcp from 'hyperbase/transport/tcp.js'
 // server
-const server = new TransportTcp()
+const server = new TransportTcp({ database: db })
 await server.listen()
 // client
 const peer = await TransportTcp.connect()
